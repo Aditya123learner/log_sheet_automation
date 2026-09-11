@@ -1,51 +1,6 @@
 # Copyright (c) 2026, Logic Motive Consultant and contributors
 # For license information, please see license.txt
 
-"""OCR provider abstraction.
-
-`Log Sheet Automation Settings.ocr_provider_mode` is locked to **Google
-Document AI** — it's the only choice offered in Settings, and every OCR
-run goes through it. The Mock and Azure code paths below still exist and
-still work (kept as an offline fallback / reference implementation) but
-`ocr_provider_mode` no longer offers them as a choice, so `extract()`
-below only ever takes the Google branch in normal operation:
-
-- **Mock** — returns fixed canned values, exactly as the original Desk-UI
-  prototype did. No longer reachable from Settings; requires no
-  credentials if you ever re-enable it for offline testing.
-- **Azure** — calls a deployed Azure AI Document Intelligence *custom*
-  extraction model over its REST API (analyze -> poll -> parse). No
-  longer reachable from Settings either. This is real, working
-  integration code, but it has not been exercised against a live Azure
-  endpoint in this environment (no credentials were available when it was
-  written). In particular: your model must return numeric fields named
-  exactly `working_hours`, `idle_hours`, `standby_hours`,
-  `breakdown_hours` (train/label the model accordingly, or adjust
-  FIELD_NAMES below to match your model's actual field names).
-- **Google Document AI** — calls a deployed Google Cloud Document AI
-  processor (a trained/custom extractor) via its REST `:process` endpoint,
-  authenticating as the service account whose key JSON is pasted into
-  `google_service_account_key` in Settings. Same caveat as Azure: real,
-  working code, but not exercised against a live processor in this
-  environment, and your processor's entity *type* names must match
-  FIELD_NAMES below (or you adjust FIELD_NAMES to match your schema).
-
-  SECURITY NOTE ON THE SERVICE ACCOUNT KEY: this module always reads the
-  key from `Log Sheet Automation Settings` (a Password-type field, stored
-  encrypted in this site's own database via Frappe's `get_password`) — it
-  is never hardcoded here or committed to source control. Paste your key
-  into that field from the Desk UI after install; don't put a live key in
-  a file that ends up in git history. If a service account key was ever
-  shared somewhere it shouldn't have been (chat, a public repo, a ticket),
-  treat it as compromised and rotate/delete it in Google Cloud Console
-  (IAM & Admin -> Service Accounts -> Keys) regardless of whether it was
-  actually used.
-
-All three providers return the same shape from `extract()`, so
-`api.run_log_sheet_ocr` and the rest of the workflow never need to know
-which one ran.
-"""
-
 import time
 
 import frappe
