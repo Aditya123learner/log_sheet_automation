@@ -1,0 +1,66 @@
+{
+ "doctype": "DocType",
+ "name": "Equipment Log Breakdown",
+ "module": "Log Sheet Automation",
+ "custom": 0,
+ "istable": 1,
+ "issingle": 0,
+ "is_submittable": 0,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "fields": [
+  {
+   "fieldname": "from_time",
+   "label": "From Time",
+   "fieldtype": "Time",
+   "idx": 1
+  },
+  {
+   "fieldname": "to_time",
+   "label": "To Time",
+   "fieldtype": "Time",
+   "idx": 2
+  },
+  {
+   "fieldname": "duration_hours",
+   "label": "Duration (Hours)",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "precision": "2",
+   "idx": 3
+  },
+  {
+   "fieldname": "reason_code",
+   "label": "Reason Code",
+   "fieldtype": "Select",
+   "options": "Mechanical\nElectrical\nHydraulic\nOperator\nOther",
+   "in_list_view": 1,
+   "idx": 4
+  },
+  {
+   "fieldname": "component",
+   "label": "Component",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "idx": 5
+  },
+  {
+   "fieldname": "remarks",
+   "label": "Remarks",
+   "fieldtype": "Small Text",
+   "idx": 6
+  },
+  {
+   "fieldname": "evidence_attachment",
+   "label": "Evidence Attachment",
+   "fieldtype": "Attach",
+   "idx": 7
+  }
+ ],
+ "permissions": [],
+ "links": [],
+ "states": []
+}

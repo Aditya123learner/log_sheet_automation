@@ -1,0 +1,52 @@
+[
+ {
+  "doctype": "Number Card",
+  "name": "LSA - Total Active Logs",
+  "label": "LSA - Total Active Logs",
+  "document_type": "Equipment Log Sheet",
+  "function": "Count",
+  "is_public": 1,
+  "module": "Log Sheet Automation",
+  "filters_json": "[[\"Equipment Log Sheet\",\"workflow_state\",\"not in\",[\"Closed\",\"Void\"]]]"
+ },
+ {
+  "doctype": "Number Card",
+  "name": "LSA - Sales Exceptions",
+  "label": "LSA - Sales Exceptions",
+  "document_type": "Equipment Log Sheet",
+  "function": "Count",
+  "is_public": 1,
+  "module": "Log Sheet Automation",
+  "filters_json": "[[\"Equipment Log Sheet\",\"sap_validation_status\",\"=\",\"Exception\"]]"
+ },
+ {
+  "doctype": "Number Card",
+  "name": "LSA - Billing Ready",
+  "label": "LSA - Billing Ready",
+  "document_type": "Equipment Log Sheet",
+  "function": "Count",
+  "is_public": 1,
+  "module": "Log Sheet Automation",
+  "filters_json": "[[\"Equipment Log Sheet\",\"workflow_state\",\"=\",\"Billing Ready\"]]"
+ },
+ {
+  "doctype": "Number Card",
+  "name": "LSA - Operator Rework",
+  "label": "LSA - Operator Rework",
+  "document_type": "Equipment Log Sheet",
+  "function": "Count",
+  "is_public": 1,
+  "module": "Log Sheet Automation",
+  "filters_json": "[[\"Equipment Log Sheet\",\"workflow_state\",\"=\",\"Operator Rework\"]]"
+ },
+ {
+  "doctype": "Number Card",
+  "name": "LSA - Closed (Demo)",
+  "label": "LSA - Closed (Demo)",
+  "document_type": "Equipment Log Sheet",
+  "function": "Count",
+  "is_public": 1,
+  "module": "Log Sheet Automation",
+  "filters_json": "[[\"Equipment Log Sheet\",\"workflow_state\",\"=\",\"Closed\"]]"
+ }
+]

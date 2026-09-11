@@ -1,0 +1,596 @@
+{
+ "doctype": "DocType",
+ "name": "Equipment Log Sheet",
+ "module": "Log Sheet Automation",
+ "custom": 0,
+ "istable": 0,
+ "issingle": 0,
+ "is_submittable": 0,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "fields": [
+  {
+   "fieldname": "workflow_state",
+   "label": "Workflow State",
+   "fieldtype": "Select",
+   "options": "Draft\nAI Review\nReady for Client\nClient Approval Pending\nParallel Validation\nOperator Rework\nSales Action Pending\nOperations Review\nBilling Ready\nClosed\nVoid",
+   "read_only": 1,
+   "in_list_view": 1,
+   "default": "Draft",
+   "idx": 1
+  },
+  {
+   "fieldname": "current_owner_role",
+   "label": "Current Owner Role",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "in_list_view": 1,
+   "idx": 2
+  },
+  {
+   "fieldname": "state_entered_on",
+   "label": "State Entered On",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "idx": 3
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Header",
+   "fieldname": "header_4",
+   "idx": 4
+  },
+  {
+   "fieldname": "naming_series",
+   "label": "Series",
+   "fieldtype": "Select",
+   "options": "LS-.YYYY.-.#####",
+   "idx": 5
+  },
+  {
+   "fieldname": "log_date",
+   "label": "Log Date",
+   "fieldtype": "Date",
+   "reqd": 1,
+   "in_list_view": 1,
+   "idx": 6
+  },
+  {
+   "fieldname": "shift",
+   "label": "Shift",
+   "fieldtype": "Select",
+   "options": "Day\nNight\nGeneral",
+   "reqd": 1,
+   "in_list_view": 1,
+   "idx": 7
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_8",
+   "idx": 8
+  },
+  {
+   "fieldname": "operating_site",
+   "label": "Operating Site",
+   "fieldtype": "Link",
+   "options": "Operating Site",
+   "reqd": 1,
+   "in_list_view": 1,
+   "idx": 9
+  },
+  {
+   "fieldname": "customer",
+   "label": "Customer",
+   "fieldtype": "Link",
+   "options": "Customer",
+   "read_only": 1,
+   "description": "Fetched from Operating Site.",
+   "idx": 10
+  },
+  {
+   "fieldname": "equipment",
+   "label": "Equipment",
+   "fieldtype": "Link",
+   "options": "Asset",
+   "reqd": 1,
+   "in_list_view": 1,
+   "idx": 11
+  },
+  {
+   "fieldname": "operator_user",
+   "label": "Operator",
+   "fieldtype": "Link",
+   "options": "User",
+   "idx": 12
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Source Document / OCR",
+   "fieldname": "source_document_/_ocr_13",
+   "idx": 13
+  },
+  {
+   "fieldname": "source_document",
+   "label": "Source Document (scan/photo)",
+   "fieldtype": "Attach",
+   "idx": 14
+  },
+  {
+   "fieldname": "ocr_template",
+   "label": "OCR Template",
+   "fieldtype": "Link",
+   "options": "Log Sheet OCR Template",
+   "idx": 15
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_16",
+   "idx": 16
+  },
+  {
+   "fieldname": "ocr_status",
+   "label": "OCR Status",
+   "fieldtype": "Select",
+   "options": "Not Run\nQueued\nCompleted\nFailed",
+   "read_only": 1,
+   "default": "Not Run",
+   "idx": 17
+  },
+  {
+   "fieldname": "ocr_provider_result_id",
+   "label": "OCR Provider Result ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "idx": 18
+  },
+  {
+   "fieldname": "ocr_review_complete",
+   "label": "OCR Review Complete",
+   "fieldtype": "Check",
+   "idx": 19
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Utilization",
+   "fieldname": "utilization_20",
+   "idx": 20
+  },
+  {
+   "fieldname": "start_time",
+   "label": "Start Time",
+   "fieldtype": "Time",
+   "idx": 21
+  },
+  {
+   "fieldname": "end_time",
+   "label": "End Time",
+   "fieldtype": "Time",
+   "idx": 22
+  },
+  {
+   "fieldname": "working_hours",
+   "label": "Working Hours",
+   "fieldtype": "Float",
+   "precision": "2",
+   "idx": 23
+  },
+  {
+   "fieldname": "idle_hours",
+   "label": "Idle Hours",
+   "fieldtype": "Float",
+   "precision": "2",
+   "idx": 24
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_25",
+   "idx": 25
+  },
+  {
+   "fieldname": "standby_hours",
+   "label": "Standby Hours",
+   "fieldtype": "Float",
+   "precision": "2",
+   "idx": 26
+  },
+  {
+   "fieldname": "breakdown_hours",
+   "label": "Breakdown Hours",
+   "fieldtype": "Float",
+   "precision": "2",
+   "idx": 27
+  },
+  {
+   "fieldname": "overtime_hours",
+   "label": "Overtime Hours",
+   "fieldtype": "Float",
+   "precision": "2",
+   "idx": 28
+  },
+  {
+   "fieldname": "operator_remarks",
+   "label": "Operator Remarks",
+   "fieldtype": "Small Text",
+   "idx": 29
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Breakdown",
+   "fieldname": "breakdown_30",
+   "idx": 30
+  },
+  {
+   "fieldname": "breakdown_table",
+   "label": "Breakdown Intervals",
+   "fieldtype": "Table",
+   "options": "Equipment Log Breakdown",
+   "idx": 31
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Commercial Mapping",
+   "fieldname": "commercial_mapping_32",
+   "idx": 32
+  },
+  {
+   "fieldname": "sap_sales_order",
+   "label": "SAP Sales Order",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "idx": 33
+  },
+  {
+   "fieldname": "sap_sales_order_item",
+   "label": "SAP Sales Order Item",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "idx": 34
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_35",
+   "idx": 35
+  },
+  {
+   "fieldname": "work_order_reference",
+   "label": "Work Order Reference",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "idx": 36
+  },
+  {
+   "fieldname": "uom",
+   "label": "UOM",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "idx": 37
+  },
+  {
+   "fieldname": "rate_key",
+   "label": "Rate Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "idx": 38
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Client Approval",
+   "fieldname": "client_approval_39",
+   "idx": 39
+  },
+  {
+   "fieldname": "client_recipient",
+   "label": "Client Recipient (email/phone label)",
+   "fieldtype": "Data",
+   "idx": 40
+  },
+  {
+   "fieldname": "client_approval_status",
+   "label": "Client Approval Status",
+   "fieldtype": "Select",
+   "options": "Not Requested\nPending\nApproved\nRejected\nExpired",
+   "read_only": 1,
+   "default": "Not Requested",
+   "idx": 41
+  },
+  {
+   "fieldname": "client_decision_on",
+   "label": "Client Decision On",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "idx": 42
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_43",
+   "idx": 43
+  },
+  {
+   "fieldname": "client_token_hash",
+   "label": "Client Token Hash",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "hidden": 1,
+   "idx": 44
+  },
+  {
+   "fieldname": "client_token_expiry",
+   "label": "Client Token Expiry",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "idx": 45
+  },
+  {
+   "fieldname": "client_snapshot_hash",
+   "label": "Client Snapshot Hash",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "hidden": 1,
+   "idx": 46
+  },
+  {
+   "fieldname": "client_comment",
+   "label": "Client Comment",
+   "fieldtype": "Small Text",
+   "idx": 47
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Parallel Validation",
+   "fieldname": "parallel_validation_48",
+   "idx": 48
+  },
+  {
+   "fieldname": "maintenance_status",
+   "label": "Maintenance Status",
+   "fieldtype": "Select",
+   "options": "Not Started\nPending\nApproved\nRejected",
+   "read_only": 1,
+   "default": "Not Started",
+   "idx": 49
+  },
+  {
+   "fieldname": "maintenance_reason_code",
+   "label": "Maintenance Reason Code",
+   "fieldtype": "Select",
+   "options": "\nMechanical\nElectrical\nHydraulic\nOperator\nDocumentation\nOther",
+   "idx": 50
+  },
+  {
+   "fieldname": "maintenance_comment",
+   "label": "Maintenance Comment",
+   "fieldtype": "Small Text",
+   "idx": 51
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_52",
+   "idx": 52
+  },
+  {
+   "fieldname": "sap_validation_status",
+   "label": "SAP Validation Status",
+   "fieldtype": "Select",
+   "options": "Not Started\nPending\nPassed\nException\nFailed",
+   "read_only": 1,
+   "default": "Not Started",
+   "idx": 53
+  },
+  {
+   "fieldname": "sap_current_run_id",
+   "label": "SAP Current Run ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "idx": 54
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_55",
+   "idx": 55
+  },
+  {
+   "fieldname": "operations_status",
+   "label": "Operations Status",
+   "fieldtype": "Select",
+   "options": "Not Started\nPending\nApproved\nReturned",
+   "read_only": 1,
+   "default": "Not Started",
+   "idx": 56
+  },
+  {
+   "fieldname": "operations_comment",
+   "label": "Operations Comment",
+   "fieldtype": "Small Text",
+   "idx": 57
+  },
+  {
+   "fieldname": "validation_table",
+   "label": "Validation Results",
+   "fieldtype": "Table",
+   "options": "Equipment Log Validation",
+   "idx": 58
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Calculation",
+   "fieldname": "calculation_59",
+   "idx": 59
+  },
+  {
+   "fieldname": "billing_rule",
+   "label": "Billing Rule",
+   "fieldtype": "Link",
+   "options": "Log Sheet Billing Rule",
+   "idx": 60
+  },
+  {
+   "fieldname": "billing_rule_version",
+   "label": "Billing Rule Version",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "idx": 61
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_62",
+   "idx": 62
+  },
+  {
+   "fieldname": "billable_hours",
+   "label": "Billable Hours",
+   "fieldtype": "Float",
+   "read_only": 1,
+   "precision": "2",
+   "idx": 63
+  },
+  {
+   "fieldname": "calculation_trace",
+   "label": "Calculation Trace (JSON)",
+   "fieldtype": "Code",
+   "options": "JSON",
+   "read_only": 1,
+   "idx": 64
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Billing",
+   "fieldname": "billing_65",
+   "idx": 65
+  },
+  {
+   "fieldname": "billing_status",
+   "label": "Billing Status",
+   "fieldtype": "Select",
+   "options": "Not Ready\nReady\nHeld\nClosed",
+   "read_only": 1,
+   "default": "Not Ready",
+   "idx": 66
+  },
+  {
+   "fieldname": "billing_hold_reason",
+   "label": "Billing Hold Reason",
+   "fieldtype": "Small Text",
+   "idx": 67
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_68",
+   "idx": 68
+  },
+  {
+   "fieldname": "sap_document_reference",
+   "label": "Manual SAP Document Reference",
+   "fieldtype": "Data",
+   "idx": 69
+  },
+  {
+   "fieldname": "closed_on",
+   "label": "Closed On",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "idx": 70
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Audit",
+   "fieldname": "audit_71",
+   "idx": 71
+  },
+  {
+   "fieldname": "approval_events",
+   "label": "Approval Event History",
+   "fieldtype": "Table",
+   "options": "Equipment Log Approval Event",
+   "read_only": 1,
+   "idx": 72
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Operator",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Maintenance Approver",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Sales Resolver",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Operations Approver",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Billing User",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Auditor",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  }
+ ],
+ "links": [],
+ "states": [],
+ "autoname": "naming_series:"
+}

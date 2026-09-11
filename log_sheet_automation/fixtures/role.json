@@ -1,0 +1,58 @@
+[
+ {
+  "doctype": "Role",
+  "name": "Log Sheet Operator",
+  "role_name": "Log Sheet Operator",
+  "desk_access": 1,
+  "disabled": 0,
+  "description": "Creates the daily log sheet, enters hours, runs OCR, generates the client approval link."
+ },
+ {
+  "doctype": "Role",
+  "name": "Log Sheet Maintenance Approver",
+  "role_name": "Log Sheet Maintenance Approver",
+  "desk_access": 1,
+  "disabled": 0,
+  "description": "Reviews equipment condition and approves/rejects the Maintenance gate."
+ },
+ {
+  "doctype": "Role",
+  "name": "Log Sheet Sales Resolver",
+  "role_name": "Log Sheet Sales Resolver",
+  "desk_access": 1,
+  "disabled": 0,
+  "description": "Works the Sales exception queue when SAP validation raises a problem and requests re-validation."
+ },
+ {
+  "doctype": "Role",
+  "name": "Log Sheet Operations Approver",
+  "role_name": "Log Sheet Operations Approver",
+  "desk_access": 1,
+  "disabled": 0,
+  "description": "Gives the final operational sign-off before a sheet can go to Billing; can return a sheet for rework."
+ },
+ {
+  "doctype": "Role",
+  "name": "Log Sheet Billing User",
+  "role_name": "Log Sheet Billing User",
+  "desk_access": 1,
+  "disabled": 0,
+  "description": "Closes billing with a SAP document reference, or places a sheet on billing hold."
+ },
+ {
+  "doctype": "Role",
+  "name": "Log Sheet Manager",
+  "role_name": "Log Sheet Manager",
+  "desk_access": 1,
+  "disabled": 0,
+  "description": "Full read/write across the module; can act in place of any other Log Sheet role; manages masters."
+ },
+ {
+  "doctype": "Role",
+  "name": "Log Sheet Auditor",
+  "role_name": "Log Sheet Auditor",
+  "desk_access": 1,
+  "disabled": 0,
+  "description": "Read-only access everywhere, for compliance/audit review of the full trail."
+ }
+]

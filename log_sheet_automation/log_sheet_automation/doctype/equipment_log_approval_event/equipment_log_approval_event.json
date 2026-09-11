@@ -1,0 +1,85 @@
+{
+ "doctype": "DocType",
+ "name": "Equipment Log Approval Event",
+ "module": "Log Sheet Automation",
+ "custom": 0,
+ "istable": 1,
+ "issingle": 0,
+ "is_submittable": 0,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "fields": [
+  {
+   "fieldname": "event_type",
+   "label": "Event Type",
+   "fieldtype": "Select",
+   "options": "Client Decision\nMaintenance Decision\nSAP Validation\nSales Action\nOperations Decision\nBilling Outcome\nSystem",
+   "in_list_view": 1,
+   "idx": 1
+  },
+  {
+   "fieldname": "prior_state",
+   "label": "Prior State",
+   "fieldtype": "Data",
+   "idx": 2
+  },
+  {
+   "fieldname": "new_state",
+   "label": "New State",
+   "fieldtype": "Data",
+   "idx": 3
+  },
+  {
+   "fieldname": "decision",
+   "label": "Decision",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "idx": 4
+  },
+  {
+   "fieldname": "actor",
+   "label": "Actor",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "description": "Data, not Link(User) \u2014 records the guest 'Guest Client Approver' pseudo-actor too.",
+   "idx": 5
+  },
+  {
+   "fieldname": "actor_role",
+   "label": "Actor Role",
+   "fieldtype": "Data",
+   "idx": 6
+  },
+  {
+   "fieldname": "event_time",
+   "label": "Event Time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "idx": 7
+  },
+  {
+   "fieldname": "reason_code",
+   "label": "Reason Code",
+   "fieldtype": "Data",
+   "idx": 8
+  },
+  {
+   "fieldname": "comment",
+   "label": "Comment",
+   "fieldtype": "Small Text",
+   "idx": 9
+  },
+  {
+   "fieldname": "snapshot_hash",
+   "label": "Snapshot Hash",
+   "fieldtype": "Data",
+   "idx": 10
+  }
+ ],
+ "permissions": [],
+ "links": [],
+ "states": []
+}

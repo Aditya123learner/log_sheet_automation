@@ -1,0 +1,32 @@
+[project]
+name = "log_sheet_automation"
+authors = [
+    { name = "Logic Motive Consultant", email = "erpnext@logic-motive.com" }
+]
+description = "Daily crane log-sheet automation for Sanghvi Movers: capture, OCR, client approval, parallel Maintenance + SAP validation, Operations sign-off and Billing handoff."
+requires-python = ">=3.10"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    # `requests` ships with every Frappe bench already, listed here for clarity.
+    "requests",
+    # Only needed if OCR Provider Mode = "Google Document AI" (signs a JWT and
+    # exchanges it for an OAuth2 access token from the service account key
+    # stored in Log Sheet Automation Settings). Not needed for Mock or Azure.
+    "google-auth",
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.dev-dependencies]
+# none beyond the dependencies above — pure Frappe/ERPNext v15 app
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

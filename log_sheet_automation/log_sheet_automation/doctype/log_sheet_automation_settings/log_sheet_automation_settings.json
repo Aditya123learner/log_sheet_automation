@@ -1,0 +1,357 @@
+{
+ "doctype": "DocType",
+ "name": "Log Sheet Automation Settings",
+ "module": "Log Sheet Automation",
+ "custom": 0,
+ "istable": 0,
+ "issingle": 1,
+ "is_submittable": 0,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "fields": [
+  {
+   "fieldtype": "Section Break",
+   "label": "OCR Integration",
+   "fieldname": "ocr_integration_1",
+   "idx": 1,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "ocr_provider_mode",
+   "label": "OCR Provider Mode",
+   "fieldtype": "Select",
+   "options": "Mock\nAzure\nGoogle Document AI",
+   "reqd": 1,
+   "default": "Mock",
+   "idx": 2,
+   "hidden": 0
+  },
+  {
+   "fieldname": "ocr_timeout_seconds",
+   "label": "OCR Timeout (seconds)",
+   "fieldtype": "Int",
+   "default": "30",
+   "idx": 3,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "mock_ocr_confidence_low_threshold",
+   "label": "Mock OCR Low-Confidence Threshold",
+   "fieldtype": "Float",
+   "default": "0.75",
+   "precision": "2",
+   "idx": 4,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_5",
+   "idx": 5,
+   "label": "",
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "azure_endpoint",
+   "label": "Azure Document Intelligence Endpoint",
+   "fieldtype": "Data",
+   "depends_on": "eval:doc.ocr_provider_mode=='Azure'",
+   "idx": 6,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "azure_api_key",
+   "label": "Azure API Key",
+   "fieldtype": "Password",
+   "depends_on": "eval:doc.ocr_provider_mode=='Azure'",
+   "idx": 7,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "azure_model_id",
+   "label": "Azure Document Intelligence Model ID",
+   "fieldtype": "Data",
+   "default": "log-sheet-v1",
+   "depends_on": "eval:doc.ocr_provider_mode=='Azure'",
+   "description": "Custom extraction model trained on the Sanghvi Movers log sheet layout. Must return working_hours/idle_hours/standby_hours/breakdown_hours as numeric fields.",
+   "idx": 8,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "azure_api_version",
+   "label": "Azure API Version",
+   "fieldtype": "Data",
+   "default": "2024-02-29-preview",
+   "depends_on": "eval:doc.ocr_provider_mode=='Azure'",
+   "idx": 9,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "google_cb",
+   "fieldtype": "Column Break",
+   "idx": 10,
+   "label": "",
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "google_project_id",
+   "fieldtype": "Data",
+   "label": "Google Cloud Project ID",
+   "depends_on": "eval:doc.ocr_provider_mode=='Google Document AI'",
+   "idx": 11,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "google_location",
+   "fieldtype": "Data",
+   "label": "Google Document AI Location",
+   "default": "us",
+   "description": "The region your Document AI processor was created in (e.g. \"us\" or \"eu\").",
+   "depends_on": "eval:doc.ocr_provider_mode=='Google Document AI'",
+   "idx": 12,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "google_processor_id",
+   "fieldtype": "Data",
+   "label": "Google Document AI Processor ID",
+   "description": "The processor ID (not the display name) of a trained/custom Document AI extractor processor.",
+   "depends_on": "eval:doc.ocr_provider_mode=='Google Document AI'",
+   "idx": 13,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "google_service_account_key",
+   "fieldtype": "Password",
+   "label": "Google Service Account Key (JSON)",
+   "description": "Paste the FULL contents of the service account key JSON file here (from Google Cloud Console -> IAM & Admin -> Service Accounts -> Keys). Stored encrypted in this site's database, never in source control. The service account needs the \"Document AI API User\" role (or broader) on the project.",
+   "depends_on": "eval:doc.ocr_provider_mode=='Google Document AI'",
+   "idx": 14,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "SAP Integration",
+   "fieldname": "sap_integration_10",
+   "idx": 15,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sap_provider_mode",
+   "label": "SAP Provider Mode",
+   "fieldtype": "Select",
+   "options": "Mock\nLive",
+   "reqd": 1,
+   "default": "Mock",
+   "idx": 16,
+   "hidden": 0
+  },
+  {
+   "fieldname": "mock_sap_scenario",
+   "label": "Mock SAP Scenario",
+   "fieldtype": "Select",
+   "options": "PASS\nEXPIRED_SO\nINSUFFICIENT_QTY",
+   "default": "PASS",
+   "depends_on": "eval:doc.sap_provider_mode=='Mock'",
+   "idx": 17,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sap_timeout_seconds",
+   "label": "SAP Timeout (seconds)",
+   "fieldtype": "Int",
+   "default": "30",
+   "idx": 18,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_12",
+   "idx": 19,
+   "label": "",
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sap_endpoint",
+   "label": "SAP Endpoint (Live)",
+   "fieldtype": "Data",
+   "depends_on": "eval:doc.sap_provider_mode=='Live'",
+   "idx": 20,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sap_auth_type",
+   "label": "SAP Auth Type",
+   "fieldtype": "Select",
+   "options": "\nAPI Key\nOAuth",
+   "depends_on": "eval:doc.sap_provider_mode=='Live'",
+   "idx": 21,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sap_credential",
+   "label": "SAP Credential",
+   "fieldtype": "Password",
+   "depends_on": "eval:doc.sap_provider_mode=='Live'",
+   "idx": 22,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "sap_live_cb",
+   "idx": 23,
+   "label": "",
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sap_response_contract",
+   "label": "Response Contract",
+   "fieldtype": "Select",
+   "options": "Generic JSON (checks[])\nCustom (override in code)",
+   "default": "Generic JSON (checks[])",
+   "depends_on": "eval:doc.sap_provider_mode=='Live'",
+   "description": "Generic JSON expects {\"checks\": [{\"code\", \"status\": \"Passed|Exception\", \"message\"}, ...]}. Adjust log_sheet_automation/integrations/sap.py if your endpoint returns a different shape.",
+   "idx": 24,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Client Approval Link",
+   "fieldname": "client_approval_link_16",
+   "idx": 25,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "client_token_ttl_hours",
+   "label": "Client Token TTL (hours)",
+   "fieldtype": "Int",
+   "reqd": 1,
+   "default": "48",
+   "idx": 26,
+   "hidden": 0
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Client Notification Delivery",
+   "fieldname": "notification_delivery_sb",
+   "idx": 27,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "notification_channel",
+   "label": "Notification Channel",
+   "fieldtype": "Select",
+   "options": "None\nEmail\nSMS\nEmail and SMS",
+   "default": "Email",
+   "reqd": 1,
+   "description": "How to deliver the client approval link once generated. 'None' just returns it in the API response (demo behaviour).",
+   "idx": 28,
+   "hidden": 0
+  },
+  {
+   "fieldname": "notification_sender_name",
+   "label": "Email Sender Display Name",
+   "fieldtype": "Data",
+   "default": "Sanghvi Movers Log Sheet",
+   "depends_on": "eval:['Email','Email and SMS'].includes(doc.notification_channel)",
+   "idx": 29,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "notification_cb",
+   "idx": 30,
+   "label": "",
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "sms_gateway_provider",
+   "label": "SMS Gateway Provider",
+   "fieldtype": "Select",
+   "options": "\nTwilio",
+   "depends_on": "eval:['SMS','Email and SMS'].includes(doc.notification_channel)",
+   "idx": 31,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "twilio_account_sid",
+   "label": "Twilio Account SID",
+   "fieldtype": "Data",
+   "depends_on": "eval:doc.sms_gateway_provider=='Twilio'",
+   "idx": 32,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "twilio_auth_token",
+   "label": "Twilio Auth Token",
+   "fieldtype": "Password",
+   "depends_on": "eval:doc.sms_gateway_provider=='Twilio'",
+   "idx": 33,
+   "reqd": 0,
+   "hidden": 0
+  },
+  {
+   "fieldname": "twilio_from_number",
+   "label": "Twilio From Number",
+   "fieldtype": "Data",
+   "depends_on": "eval:doc.sms_gateway_provider=='Twilio'",
+   "idx": 34,
+   "reqd": 0,
+   "hidden": 0
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  }
+ ],
+ "links": [],
+ "states": []
+}

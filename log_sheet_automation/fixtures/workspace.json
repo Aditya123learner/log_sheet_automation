@@ -1,0 +1,41 @@
+[
+ {
+  "doctype": "Workspace",
+  "name": "Log Sheet Automation",
+  "label": "Log Sheet Automation",
+  "title": "Log Sheet Automation",
+  "module": "Log Sheet Automation",
+  "public": 1,
+  "is_hidden": 0,
+  "for_user": "",
+  "icon": "octicon octicon-checklist",
+  "indicator_color": "green",
+  "content": "[{\"id\":\"hdr1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Log Sheet Automation - Sanghvi Movers (Demo)</b></span>\",\"col\":12}},{\"id\":\"par1\",\"type\":\"paragraph\",\"data\":{\"text\":\"Digital daily crane log sheet workflow: capture, Mock OCR, client approval, Maintenance + SAP parallel gates, Operations sign-off and Billing handoff. All integrations run in Mock mode for this MVP demo.\",\"col\":12}},{\"id\":\"hdr_dash\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h5\\\"><b>Oversight</b></span>\",\"col\":12}},{\"id\":\"card1\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"LSA - Total Active Logs\",\"col\":3}},{\"id\":\"card2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"LSA - Sales Exceptions\",\"col\":3}},{\"id\":\"card3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"LSA - Billing Ready\",\"col\":3}},{\"id\":\"card4\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"LSA - Operator Rework\",\"col\":3}},{\"id\":\"hdr_ops\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h5\\\"><b>Operate</b></span>\",\"col\":12}},{\"id\":\"sc_new\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"New Log Sheet\",\"col\":3}},{\"id\":\"sc_all\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"All Log Sheets\",\"col\":3}},{\"id\":\"sc_drafts\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"My Drafts\",\"col\":3}},{\"id\":\"sc_rework\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Operator Rework\",\"col\":3}},{\"id\":\"sc_maint\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Pending\",\"col\":3}},{\"id\":\"sc_sales\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Sales Exceptions\",\"col\":3}},{\"id\":\"sc_opsrev\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Operations Review\",\"col\":3}},{\"id\":\"sc_billing\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Billing Ready\",\"col\":3}},{\"id\":\"hdr_masters\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h5\\\"><b>Masters &amp; Configuration</b></span>\",\"col\":12}},{\"id\":\"sc_site\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Operating Site\",\"col\":3}},{\"id\":\"sc_mapping\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Site Equipment Commercial Mapping\",\"col\":3}},{\"id\":\"sc_rule\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Log Sheet Billing Rule\",\"col\":3}},{\"id\":\"sc_ocr\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Log Sheet OCR Template\",\"col\":3}},{\"id\":\"sc_settings\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Settings\",\"col\":3}}]",
+  "number_cards": [
+   {"doctype": "Workspace Number Card", "number_card_name": "LSA - Total Active Logs", "label": "LSA - Total Active Logs"},
+   {"doctype": "Workspace Number Card", "number_card_name": "LSA - Sales Exceptions", "label": "LSA - Sales Exceptions"},
+   {"doctype": "Workspace Number Card", "number_card_name": "LSA - Billing Ready", "label": "LSA - Billing Ready"},
+   {"doctype": "Workspace Number Card", "number_card_name": "LSA - Operator Rework", "label": "LSA - Operator Rework"}
+  ],
+  "shortcuts": [
+   {"doctype": "Workspace Shortcut", "label": "New Log Sheet", "type": "DocType", "link_to": "Equipment Log Sheet", "doc_view": "New", "color": "Green", "icon": "add"},
+   {"doctype": "Workspace Shortcut", "label": "All Log Sheets", "type": "DocType", "link_to": "Equipment Log Sheet", "doc_view": "List", "color": "Blue", "icon": "list"},
+   {"doctype": "Workspace Shortcut", "label": "My Drafts", "type": "URL", "url": "/app/equipment-log-sheet?workflow_state=Draft", "color": "Grey"},
+   {"doctype": "Workspace Shortcut", "label": "Operator Rework", "type": "URL", "url": "/app/equipment-log-sheet?workflow_state=Operator Rework", "color": "Red"},
+   {"doctype": "Workspace Shortcut", "label": "Maintenance Pending", "type": "URL", "url": "/app/equipment-log-sheet?maintenance_status=Pending", "color": "Orange"},
+   {"doctype": "Workspace Shortcut", "label": "Sales Exceptions", "type": "URL", "url": "/app/equipment-log-sheet?sap_validation_status=Exception", "color": "Orange"},
+   {"doctype": "Workspace Shortcut", "label": "Operations Review", "type": "URL", "url": "/app/equipment-log-sheet?workflow_state=Operations Review", "color": "Blue"},
+   {"doctype": "Workspace Shortcut", "label": "Billing Ready", "type": "URL", "url": "/app/equipment-log-sheet?workflow_state=Billing Ready", "color": "Green"},
+   {"doctype": "Workspace Shortcut", "label": "Operating Site", "type": "DocType", "link_to": "Operating Site", "doc_view": "List", "color": "Grey"},
+   {"doctype": "Workspace Shortcut", "label": "Site Equipment Commercial Mapping", "type": "DocType", "link_to": "Site Equipment Commercial Mapping", "doc_view": "List", "color": "Grey"},
+   {"doctype": "Workspace Shortcut", "label": "Log Sheet Billing Rule", "type": "DocType", "link_to": "Log Sheet Billing Rule", "doc_view": "List", "color": "Grey"},
+   {"doctype": "Workspace Shortcut", "label": "Log Sheet OCR Template", "type": "DocType", "link_to": "Log Sheet OCR Template", "doc_view": "List", "color": "Grey"},
+   {"doctype": "Workspace Shortcut", "label": "Settings", "type": "DocType", "link_to": "Log Sheet Automation Settings", "doc_view": "Document", "color": "Grey"}
+  ],
+  "charts": [],
+  "links": [],
+  "quick_lists": [],
+  "custom_blocks": [],
+  "roles": []
+ }
+]

@@ -1,0 +1,108 @@
+{
+ "doctype": "DocType",
+ "name": "Log Sheet OCR Template",
+ "module": "Log Sheet Automation",
+ "custom": 0,
+ "istable": 0,
+ "issingle": 0,
+ "is_submittable": 0,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "fields": [
+  {
+   "fieldname": "template_name",
+   "label": "Template Name",
+   "fieldtype": "Data",
+   "reqd": 1,
+   "in_list_view": 1,
+   "idx": 1
+  },
+  {
+   "fieldname": "is_active",
+   "label": "Is Active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "default": "1",
+   "idx": 2
+  },
+  {
+   "fieldname": "default_confidence_threshold",
+   "label": "Default Confidence Threshold",
+   "fieldtype": "Float",
+   "precision": "2",
+   "description": "Fields extracted below this confidence score are routed to AI Review.",
+   "idx": 3
+  },
+  {
+   "fieldname": "description",
+   "label": "Description",
+   "fieldtype": "Small Text",
+   "idx": 4
+  },
+  {
+   "fieldname": "schema_json",
+   "label": "Expected Field Schema (JSON)",
+   "fieldtype": "Code",
+   "options": "JSON",
+   "idx": 5
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Operations Approver",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Operator",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "role": "Log Sheet Auditor",
+   "read": 1,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "report": 1,
+   "export": 1,
+   "share": 1
+  }
+ ],
+ "links": [],
+ "states": [],
+ "autoname": "field:template_name"
+}

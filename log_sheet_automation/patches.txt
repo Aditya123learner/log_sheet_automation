@@ -1,0 +1,2 @@
+# Patches added in this file are executed before doctype schema migrations.
+# Read docs to understand patches: https://docs.frappe.io/framework/user/en/database-migrations

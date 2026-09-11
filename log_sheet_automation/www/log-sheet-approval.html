@@ -1,0 +1,115 @@
+{% extends "templates/web.html" %}
+
+{% block title %}{{ _("Log Sheet Approval") }}{% endblock %}
+
+{% block page_content %}
+<style>
+	.lsa-approval-wrap { max-width: 560px; margin: 2rem auto; padding: 0 1rem; font-family: sans-serif; }
+	.lsa-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 1.5rem; }
+	.lsa-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f2f2f2; font-size: 14px; }
+	.lsa-row .k { color: #666; }
+	.lsa-row .v { font-weight: 600; }
+	.lsa-actions { margin-top: 1.5rem; display: flex; gap: 12px; }
+	.lsa-btn { flex: 1; padding: 12px; border-radius: 6px; border: none; font-size: 15px; cursor: pointer; }
+	.lsa-btn-approve { background: #2e7d32; color: #fff; }
+	.lsa-btn-reject { background: #fff; color: #c62828; border: 1px solid #c62828; }
+	.lsa-comment { width: 100%; margin-top: 12px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; }
+	.lsa-msg { margin-top: 1rem; padding: 12px; border-radius: 6px; font-size: 14px; }
+	.lsa-msg-error { background: #fdecea; color: #c62828; }
+	.lsa-msg-success { background: #e8f5e9; color: #2e7d32; }
+	.lsa-loading { text-align: center; color: #888; padding: 2rem 0; }
+</style>
+
+<div class="lsa-approval-wrap">
+	<h2>{{ _("Log Sheet Approval") }}</h2>
+	<div id="lsa-root" class="lsa-card">
+		<div class="lsa-loading">{{ _("Loading...") }}</div>
+	</div>
+</div>
+
+<script>
+(function () {
+	const params = new URLSearchParams(window.location.search);
+	const token = params.get("token");
+	const root = document.getElementById("lsa-root");
+
+	function escapeHtml(s) {
+		return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
+			"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+		}[c]));
+	}
+
+	function renderError(message) {
+		root.innerHTML = `<div class="lsa-msg lsa-msg-error">${escapeHtml(message)}</div>`;
+	}
+
+	function renderSnapshot(s) {
+		root.innerHTML = `
+			<div class="lsa-row"><span class="k">${"{{ _('Site') }}"}</span><span class="v">${escapeHtml(s.site)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Equipment') }}"}</span><span class="v">${escapeHtml(s.equipment)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Date') }}"}</span><span class="v">${escapeHtml(s.log_date)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Shift') }}"}</span><span class="v">${escapeHtml(s.shift)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Working Hours') }}"}</span><span class="v">${escapeHtml(s.working_hours)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Idle Hours') }}"}</span><span class="v">${escapeHtml(s.idle_hours)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Standby Hours') }}"}</span><span class="v">${escapeHtml(s.standby_hours)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Breakdown Hours') }}"}</span><span class="v">${escapeHtml(s.breakdown_hours)}</span></div>
+			<textarea id="lsa-comment" class="lsa-comment" rows="2" placeholder="${"{{ _('Comment (required to reject)') }}"}"></textarea>
+			<div class="lsa-actions">
+				<button class="lsa-btn lsa-btn-approve" id="lsa-approve">${"{{ _('Approve') }}"}</button>
+				<button class="lsa-btn lsa-btn-reject" id="lsa-reject">${"{{ _('Reject') }}"}</button>
+			</div>
+			<div id="lsa-result"></div>
+		`;
+
+		document.getElementById("lsa-approve").addEventListener("click", () => submitDecision("Approve"));
+		document.getElementById("lsa-reject").addEventListener("click", () => submitDecision("Reject"));
+	}
+
+	async function submitDecision(decision) {
+		const comment = document.getElementById("lsa-comment").value;
+		const resultEl = document.getElementById("lsa-result");
+		const body = new URLSearchParams({ token: token, decision: decision, comment: comment });
+
+		try {
+			const resp = await fetch("/api/method/log_sheet_automation.api.record_log_sheet_client_decision", {
+				method: "POST",
+				credentials: "omit",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body: body.toString(),
+			});
+			const data = await resp.json();
+			const message = data.message || {};
+			if (message.ok) {
+				root.innerHTML = `<div class="lsa-msg lsa-msg-success">${
+					decision === "Approve"
+						? "{{ _('Thank you — this log sheet has been approved.') }}"
+						: "{{ _('This log sheet has been sent back for rework.') }}"
+				}</div>`;
+			} else {
+				resultEl.innerHTML = `<div class="lsa-msg lsa-msg-error">${escapeHtml(message.error || "{{ _('Something went wrong.') }}")}</div>`;
+			}
+		} catch (e) {
+			resultEl.innerHTML = `<div class="lsa-msg lsa-msg-error">{{ _('Network error — please try again.') }}</div>`;
+		}
+	}
+
+	if (!token) {
+		renderError("{{ _('This approval link is invalid or has expired.') }}");
+	} else {
+		fetch(`/api/method/log_sheet_automation.api.get_log_sheet_approval_snapshot?token=${encodeURIComponent(token)}`, {
+			credentials: "omit",
+		})
+			.then((r) => r.json())
+			.then((data) => {
+				const message = data.message || {};
+				if (message.ok) {
+					renderSnapshot(message);
+				} else {
+					renderError(message.error || "{{ _('This approval link is invalid or has expired.') }}");
+				}
+			})
+			.catch(() => renderError("{{ _('Network error — please try again.') }}"));
+	}
+})();
+</script>
+{% endblock %}
