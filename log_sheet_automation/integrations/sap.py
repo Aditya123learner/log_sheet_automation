@@ -1,29 +1,8 @@
 # Copyright (c) 2026, Logic Motive Consultant and contributors
 # For license information, please see license.txt
 
-"""SAP validation provider abstraction.
-
-Two providers, selected by `Log Sheet Automation Settings.sap_provider_mode`:
-
-- **Mock** — the five canned checks (SO_DATE, OPEN_QTY, EQUIPMENT_MATCH,
-  WO_REF, RATE) from the original prototype, with `mock_sap_scenario`
-  letting a demo force an EXPIRED_SO / INSUFFICIENT_QTY exception on
-  demand.
-- **Live** — POSTs a validation request to `sap_endpoint` and expects a
-  JSON response shaped like `{"checks": [{"code", "status", "message"}]}`
-  (status one of Passed/Exception/Failed). This is a *generic* REST
-  contract, not any specific SAP module's real API — real SAP landscapes
-  expose this kind of check through very different mechanisms (an OData
-  service, SAP PI/PO, an RFC-fronting middleware, a BTP integration
-  flow...). Treat `_call_live_endpoint()` below as the one function you
-  replace with whatever your actual SAP integration layer expects; the
-  rest of this module (and the rest of the app) only depends on getting
-  back that `checks` list, not on how it was obtained. Not live-tested
-  against a real SAP endpoint in this environment.
-"""
-
 import frappe
-from frappe.utils import now_datetime
+from frappe.utils import flt, now_datetime
 
 MOCK_CHECKS = [
 	{"code": "SO_DATE", "status": "Passed", "message": "Sales order within valid date range."},
@@ -70,10 +49,51 @@ def _validate_live(doc, settings):
 	return run_id, checks
 
 
+def _build_sap_payload(doc):
+	"""The actual log sheet data sent to SAP — not just the order-reference
+	IDs needed to look the sales order up, but the crane log data itself
+	(hours, breakdown lines, billable hours once calculated) so the SAP
+	side has the real record to validate/book against, not a bare
+	reference check. Extend this if your SAP contract needs more."""
+	return {
+		"log_sheet": doc.name,
+		"operating_site": doc.operating_site,
+		"customer": doc.customer,
+		"equipment": doc.equipment,
+		"log_date": str(doc.log_date),
+		"shift": doc.shift,
+		"start_time": str(doc.start_time) if doc.start_time else None,
+		"end_time": str(doc.end_time) if doc.end_time else None,
+		"working_hours": flt(doc.working_hours),
+		"idle_hours": flt(doc.idle_hours),
+		"standby_hours": flt(doc.standby_hours),
+		"breakdown_hours": flt(doc.breakdown_hours),
+		"overtime_hours": flt(doc.overtime_hours),
+		"billable_hours": flt(doc.billable_hours),
+		"breakdown_lines": [
+			{
+				"reason_code": row.reason_code,
+				"component": row.component,
+				"from_time": str(row.from_time) if row.from_time else None,
+				"to_time": str(row.to_time) if row.to_time else None,
+				"duration_hours": flt(row.duration_hours),
+				"remarks": row.remarks,
+			}
+			for row in (doc.breakdown_table or [])
+		],
+		"sap_sales_order": doc.sap_sales_order,
+		"sap_sales_order_item": doc.sap_sales_order_item,
+		"work_order_reference": doc.work_order_reference,
+		"uom": doc.uom,
+		"rate_key": doc.rate_key,
+	}
+
+
 def _call_live_endpoint(doc, settings):
 	"""Replace this function's body with whatever your SAP integration
 	layer actually expects. As shipped it implements a plain REST contract:
-	POST {sap_endpoint} with a JSON payload, expecting back
+	POST {sap_endpoint} with a JSON payload (see _build_sap_payload above —
+	the actual log sheet data, not just reference IDs), expecting back
 	{"checks": [{"code", "status", "message"}, ...]}.
 	"""
 	import requests
@@ -95,15 +115,7 @@ def _call_live_endpoint(doc, settings):
 		if token:
 			headers["Authorization"] = f"Bearer {token}"
 
-	payload = {
-		"log_sheet": doc.name,
-		"operating_site": doc.operating_site,
-		"equipment": doc.equipment,
-		"log_date": str(doc.log_date),
-		"sap_sales_order": doc.sap_sales_order,
-		"sap_sales_order_item": doc.sap_sales_order_item,
-		"work_order_reference": doc.work_order_reference,
-	}
+	payload = _build_sap_payload(doc)
 
 	timeout = frappe.utils.cint(settings.sap_timeout_seconds) or 30
 	response = requests.post(settings.sap_endpoint, json=payload, headers=headers, timeout=timeout)
