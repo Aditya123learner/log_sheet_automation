@@ -20,8 +20,18 @@ dependencies = [
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
 
+# bench reads this to check compatibility before `bench get-app` / `install-app`
+# / `migrate` will proceed — without it bench refuses the app entirely with
+# "could not find a compatible Frappe version in pyproject.toml". This app was
+# built and tested against Frappe/ERPNext v15; it links to ERPNext's own
+# "Customer" DocType (see hooks.py's required_apps), so erpnext is a real
+# dependency here, not just frappe.
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<16.0.0"
+erpnext = ">=15.0.0,<16.0.0"
+
 [tool.bench.dev-dependencies]
-# none beyond the dependencies above — pure Frappe/ERPNext v15 app
+# none beyond the dependencies above
 
 [tool.ruff]
 line-length = 110
