@@ -24,11 +24,12 @@
    "fieldname": "ocr_provider_mode",
    "label": "OCR Provider Mode",
    "fieldtype": "Select",
-   "options": "Mock\nAzure\nGoogle Document AI",
+   "options": "Google Document AI",
    "reqd": 1,
-   "default": "Mock",
+   "default": "Google Document AI",
    "idx": 2,
-   "hidden": 0
+   "hidden": 0,
+   "description": "Locked to Google Document AI for this deployment. Mock and Azure code paths still exist in integrations/ocr.py (kept as an offline fallback/reference) but are no longer selectable here."
   },
   {
    "fieldname": "ocr_timeout_seconds",
@@ -156,11 +157,12 @@
    "fieldname": "sap_provider_mode",
    "label": "SAP Provider Mode",
    "fieldtype": "Select",
-   "options": "Mock\nLive",
+   "options": "Live",
    "reqd": 1,
-   "default": "Mock",
+   "default": "Live",
    "idx": 16,
-   "hidden": 0
+   "hidden": 0,
+   "description": "Locked to Live for this deployment. The Mock path still exists in integrations/sap.py (kept as an offline fallback/reference) but is no longer selectable here \u2014 every validation run now calls the real SAP endpoint below."
   },
   {
    "fieldname": "mock_sap_scenario",
@@ -171,7 +173,8 @@
    "depends_on": "eval:doc.sap_provider_mode=='Mock'",
    "idx": 17,
    "reqd": 0,
-   "hidden": 0
+   "hidden": 0,
+   "description": "No longer reachable from the UI now that SAP Provider Mode is locked to Live \u2014 kept only so integrations/sap.py's Mock path still works if you ever re-enable it for offline testing."
   },
   {
    "fieldname": "sap_timeout_seconds",
