@@ -6,6 +6,12 @@ app_email = "erpnext@logic-motive.com"
 app_license = "MIT"
 app_version = "0.1.0"
 
+# This app links to ERPNext's own "Customer" DocType (Equipment Log Sheet's
+# client_recipient lookup, Operating Site's billing customer), so ERPNext
+# must already be installed on the site before this app is — bench reads
+# this list before install, install-app, and migrate.
+required_apps = ["erpnext"]
+
 # Includes in <head>
 # ------------------
 # include js, css files in header of desk.html
