@@ -1,24 +1,6 @@
 # Copyright (c) 2026, Logic Motive Consultant and contributors
 # For license information, please see license.txt
 
-"""Whitelisted API surface for Log Sheet Automation.
-
-Nine endpoints, matching the SRS's Appendix B "controller methods". Two are
-guest-accessible (the public client approval page hits these with no
-session): `get_log_sheet_approval_snapshot` (GET) and
-`record_log_sheet_client_decision` (POST). Everything else requires one of
-the module's own roles, checked explicitly below with `frappe.get_roles()`
-rather than relying on DocType-level permissions alone, because these are
-workflow *actions* (approve/reject/close), not plain field writes — see the
-Technical Design document §3.1 for why the two are checked separately.
-
-Every mutating endpoint here is POST-only in practice: call it with GET and
-nothing gets persisted (this was confirmed empirically against Frappe
-during the original prototype — a GET request against a whitelisted method
-does not reliably auto-commit the write). `get_log_sheet_approval_snapshot`
-is the one read-only, GET-safe exception.
-"""
-
 import json
 
 import frappe
@@ -83,7 +65,7 @@ def run_log_sheet_ocr(name):
 	settings = _get_settings()
 	threshold = flt(settings.mock_ocr_confidence_low_threshold) or 0.75
 
-	run_id, extracted = ocr_integration.extract(doc, settings)
+	run_id, extracted, ocr_meta = ocr_integration.extract(doc, settings)
 
 	low_confidence = False
 	for row in extracted:
@@ -110,9 +92,17 @@ def run_log_sheet_ocr(name):
 	doc.ocr_review_complete = 0 if low_confidence else 1
 	doc.workflow_state = "AI Review"
 
+	comment = f"{settings.ocr_provider_mode} OCR run {run_id}. Low-confidence fields require review: {low_confidence}"
+	if ocr_meta.get("raw_text"):
+		# For Google Vision: the raw text it recognized off the image, so
+		# whoever reviews this run can see exactly what to put into
+		# Settings > OCR Field Label Patterns without digging through
+		# server logs. See integrations/ocr.py's module docstring.
+		comment += f"\n\nRaw OCR text (for tuning field label patterns):\n{ocr_meta['raw_text']}"
+
 	_log_event(
 		doc, "System", "Draft", "AI Review", "OCR Completed", "Log Sheet Operator",
-		comment=f"{settings.ocr_provider_mode} OCR run {run_id}. Low-confidence fields require review: {low_confidence}",
+		comment=comment,
 	)
 
 	doc.save()
