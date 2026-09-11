@@ -1,6 +1,72 @@
 # Copyright (c) 2026, Logic Motive Consultant and contributors
 # For license information, please see license.txt
 
+"""OCR provider abstraction.
+
+`Log Sheet Automation Settings.ocr_provider_mode` is locked to **Google
+Vision API** — it's the only choice offered in Settings, and every OCR
+run goes through it. The Mock and Azure code paths below still exist and
+still work (kept as an offline fallback / reference implementation) but
+`ocr_provider_mode` no longer offers them as a choice, so `extract()`
+below only ever takes the Google Vision branch in normal operation:
+
+- **Mock** — returns fixed canned values, exactly as the original Desk-UI
+  prototype did. No longer reachable from Settings; requires no
+  credentials if you ever re-enable it for offline testing.
+- **Azure** — calls a deployed Azure AI Document Intelligence *custom*
+  extraction model over its REST API (analyze -> poll -> parse). No
+  longer reachable from Settings either.
+- **Google Vision API** — calls Cloud Vision's `images:annotate` endpoint
+  with `DOCUMENT_TEXT_DETECTION`, authenticating as the service account
+  whose key JSON is pasted into `google_service_account_key` in Settings
+  (that's the *only* field this provider needs — unlike Document AI,
+  Vision has no per-project processor to create/train, so there's no
+  Project ID / Location / Processor ID to configure).
+
+  IMPORTANT DIFFERENCE FROM DOCUMENT AI: Vision API only does raw text
+  recognition — it hands back the words/lines it read off the image, not
+  labeled fields like "working_hours: 8". This module has to find the
+  four hour values itself by pattern-matching the recognized text against
+  the label wording your log sheet actually prints. Two things make that
+  tunable WITHOUT another code deploy once you have a real log sheet:
+
+  1. `Log Sheet Automation Settings.ocr_field_label_patterns` — a JSON
+     field in Settings (edit it straight from the Desk UI) that overrides
+     DEFAULT_FIELD_LABEL_PATTERNS below on a per-field basis. Leave a
+     field out (or leave the whole setting blank) and that field falls
+     back to the hardcoded default. This is the "parameters we decide
+     later" hook — once you have the real log sheet, its label wording
+     goes in here, not into a code change.
+  2. Every OCR run's audit trail entry (the "OCR Completed" event on the
+     log sheet) includes the raw text Vision actually recognized off the
+     image, truncated to ~1000 characters — see `run_log_sheet_ocr` in
+     api.py. That's what you'd read to figure out what the real label
+     wording is and what to put in (1).
+
+  DEFAULT_FIELD_LABEL_PATTERNS below is a best-effort starting guess
+  (common variants of "Working Hours", "Idle Hours", etc.) — it has NOT
+  been checked against a real log sheet's layout, because no sample was
+  available when this was written. Until Settings is tuned against a real
+  scan (or the defaults are edited directly), treat extracted values as
+  unverified.
+
+  SECURITY NOTE ON THE SERVICE ACCOUNT KEY: this module always reads the
+  key from `Log Sheet Automation Settings` (a Password-type field, stored
+  encrypted in this site's own database via Frappe's `get_password`) — it
+  is never hardcoded here or committed to source control. Paste your key
+  into that field from the Desk UI after install; don't put a live key in
+  a file that ends up in git history. If a service account key was ever
+  shared somewhere it shouldn't have been (chat, a public repo, a ticket),
+  treat it as compromised and rotate/delete it in Google Cloud Console
+  (IAM & Admin -> Service Accounts -> Keys) regardless of whether it was
+  actually used.
+
+All providers return the same shape from `extract()`, so
+`api.run_log_sheet_ocr` and the rest of the workflow never need to know
+which one ran.
+"""
+
+import re
 import time
 
 import frappe
@@ -8,21 +74,37 @@ from frappe.utils import now_datetime
 
 FIELD_NAMES = ["working_hours", "idle_hours", "standby_hours", "breakdown_hours"]
 
+# Best-effort label variants to look for in the raw text Vision API returns,
+# tried in order for each field until one matches. UNVERIFIED against a real
+# log sheet — this is only the fallback used when Settings.
+# ocr_field_label_patterns doesn't override a given field (see
+# _get_field_label_patterns below, and the module docstring above). Matches
+# "<label> <optional : or -> <number>", case-insensitive.
+DEFAULT_FIELD_LABEL_PATTERNS = {
+	"working_hours": [r"working\s*hours?", r"work\s*hrs?\.?", r"w\.?\s*hrs?\.?"],
+	"idle_hours": [r"idle\s*hours?", r"idle\s*hrs?\.?"],
+	"standby_hours": [r"stand\s*-?\s*by\s*hours?", r"standby\s*hrs?\.?"],
+	"breakdown_hours": [r"break\s*-?\s*down\s*hours?", r"breakdown\s*hrs?\.?", r"b\.?d\.?\s*hrs?\.?"],
+}
+
 # How long to poll an Azure analyze operation before giving up.
 AZURE_POLL_INTERVAL_SECONDS = 2
 AZURE_POLL_MAX_ATTEMPTS = 30  # ~60s total, overridable via ocr_timeout_seconds
 
 
 def extract(doc, settings):
-	"""Returns (run_id, rows) where rows is a list of
-	{"field", "value", "confidence"} dicts, one per FIELD_NAMES entry.
-	Raises frappe.ValidationError on a hard provider failure (Mock never
-	fails; Azure and Google Document AI can).
+	"""Returns (run_id, rows, meta) — rows is a list of
+	{"field", "value", "confidence"} dicts, one per FIELD_NAMES entry; meta
+	is a dict of extra, provider-specific info for the audit trail (for
+	Google Vision: {"raw_text": <what Vision actually recognized>}, so you
+	can see exactly what to tune ocr_field_label_patterns against — empty
+	for Mock/Azure). Raises frappe.ValidationError on a hard provider
+	failure (Mock never fails; Azure and Google Vision can).
 	"""
 	if settings.ocr_provider_mode == "Azure":
 		return _extract_azure(doc, settings)
-	if settings.ocr_provider_mode == "Google Document AI":
-		return _extract_google(doc, settings)
+	if settings.ocr_provider_mode == "Google Vision API":
+		return _extract_google_vision(doc, settings)
 	return _extract_mock()
 
 
@@ -34,7 +116,7 @@ def _extract_mock():
 		{"field": "standby_hours", "value": 0.3, "confidence": 0.92},
 		{"field": "breakdown_hours", "value": 1.5, "confidence": 0.72},
 	]
-	return run_id, rows
+	return run_id, rows, {}
 
 
 def _extract_azure(doc, settings):
@@ -91,7 +173,7 @@ def _extract_azure(doc, settings):
 			confidence = 0.0
 		rows.append({"field": field_name, "value": value, "confidence": confidence})
 
-	return run_id, rows
+	return run_id, rows, {}
 
 
 def _poll_azure_operation(operation_location, api_key, timeout_seconds):
@@ -128,10 +210,10 @@ def _guess_content_type(filename):
 
 
 # ---------------------------------------------------------------------------
-# Google Document AI
+# Google Vision API
 # ---------------------------------------------------------------------------
 
-def _extract_google(doc, settings):
+def _extract_google_vision(doc, settings):
 	import base64
 	import json as json_module
 
@@ -139,21 +221,12 @@ def _extract_google(doc, settings):
 
 	if not doc.source_document:
 		frappe.throw(
-			frappe._("Attach the scanned/photographed log sheet (Source Document) before running Google Document AI OCR.")
+			frappe._("Attach the scanned/photographed log sheet (Source Document) before running Google Vision OCR.")
 		)
 
-	project_id = settings.google_project_id
-	location = settings.google_location or "us"
-	processor_id = settings.google_processor_id
 	key_json_text = settings.get_password("google_service_account_key", raise_exception=False)
-
-	if not (project_id and processor_id and key_json_text):
-		frappe.throw(
-			frappe._(
-				"Google Cloud Project ID, Document AI Processor ID, and Service Account Key must all be set "
-				"in Log Sheet Automation Settings."
-			)
-		)
+	if not key_json_text:
+		frappe.throw(frappe._("Google Service Account Key (JSON) must be set in Log Sheet Automation Settings."))
 
 	try:
 		service_account_info = json_module.loads(key_json_text)
@@ -169,52 +242,98 @@ def _extract_google(doc, settings):
 
 	file_doc = frappe.get_doc("File", {"file_url": doc.source_document})
 	content = file_doc.get_content()
-	mime_type = _guess_content_type(file_doc.file_name or doc.source_document)
 	timeout = frappe.utils.cint(settings.ocr_timeout_seconds) or 30
 
-	process_url = (
-		f"https://{location}-documentai.googleapis.com/v1/projects/{project_id}"
-		f"/locations/{location}/processors/{processor_id}:process"
-	)
+	annotate_url = "https://vision.googleapis.com/v1/images:annotate"
 	headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-	payload = {"rawDocument": {"content": base64.b64encode(content).decode("ascii"), "mimeType": mime_type}}
+	payload = {
+		"requests": [
+			{
+				"image": {"content": base64.b64encode(content).decode("ascii")},
+				"features": [{"type": "DOCUMENT_TEXT_DETECTION"}],
+			}
+		]
+	}
 
-	response = requests.post(process_url, headers=headers, json=payload, timeout=timeout)
+	response = requests.post(annotate_url, headers=headers, json=payload, timeout=timeout)
 	if response.status_code != 200:
 		frappe.throw(
-			frappe._("Google Document AI rejected the process request ({0}): {1}").format(
+			frappe._("Google Vision API rejected the request ({0}): {1}").format(
 				response.status_code, response.text[:500]
 			)
 		)
 
 	result = response.json()
-	entities = (result.get("document") or {}).get("entities") or []
-	# First entity wins per type — a custom extractor may return more than
-	# one mention of the same field type on a noisy scan.
-	by_type = {}
-	for entity in entities:
-		entity_type = entity.get("type")
-		if entity_type and entity_type not in by_type:
-			by_type[entity_type] = entity
+	api_response = (result.get("responses") or [{}])[0]
+	if api_response.get("error"):
+		frappe.throw(frappe._("Google Vision API returned an error: {0}").format(api_response["error"].get("message")))
 
-	run_id = f"OCR-GOOGLE-{now_datetime().strftime('%Y%m%d%H%M%S%f')}"
+	full_text = (api_response.get("fullTextAnnotation") or {}).get("text") or ""
+	if not full_text.strip():
+		frappe.throw(frappe._("Google Vision API returned no readable text for this file — check the scan quality."))
+
+	patterns_by_field = _get_field_label_patterns(settings)
+
+	run_id = f"OCR-GOOGLEVISION-{now_datetime().strftime('%Y%m%d%H%M%S%f')}"
 	rows = []
 	for field_name in FIELD_NAMES:
-		entity = by_type.get(field_name)
-		if entity is None:
-			# Entity type not present in this processor's output — record it
-			# as a zero-confidence miss rather than silently dropping it, so
-			# it surfaces in AI Review like any other low-confidence field.
-			rows.append({"field": field_name, "value": 0.0, "confidence": 0.0})
-			continue
-		raw_value = (entity.get("normalizedValue") or {}).get("text") or entity.get("mentionText") or "0"
-		try:
-			value = float(str(raw_value).strip())
-		except ValueError:
-			value = 0.0
-		rows.append({"field": field_name, "value": value, "confidence": entity.get("confidence") or 0.0})
+		value, confidence = _match_field_in_text(full_text, patterns_by_field.get(field_name, []))
+		rows.append({"field": field_name, "value": value, "confidence": confidence})
 
-	return run_id, rows
+	# Truncated so a very noisy scan doesn't blow out the audit trail —
+	# still long enough to see the label wording that actually needs
+	# matching. Full text is in the API response itself if you need more.
+	meta = {"raw_text": full_text[:1000]}
+	return run_id, rows, meta
+
+
+def _get_field_label_patterns(settings):
+	"""Merges Settings.ocr_field_label_patterns (a JSON object of
+	{field_name: [pattern, ...]}, edited from the Desk UI — no code deploy
+	needed) over DEFAULT_FIELD_LABEL_PATTERNS. A field the JSON doesn't
+	mention, or an empty/blank setting, falls back to the default for that
+	field. Malformed JSON is a hard error (not silently ignored) so a typo
+	doesn't quietly revert to defaults without anyone noticing."""
+	import json as json_module
+
+	raw = (settings.ocr_field_label_patterns or "").strip()
+	if not raw:
+		return dict(DEFAULT_FIELD_LABEL_PATTERNS)
+
+	try:
+		overrides = json_module.loads(raw)
+	except ValueError as e:
+		frappe.throw(
+			frappe._(
+				"Log Sheet Automation Settings > OCR Field Label Patterns is not valid JSON: {0}"
+			).format(e)
+		)
+
+	if not isinstance(overrides, dict):
+		frappe.throw(frappe._("OCR Field Label Patterns must be a JSON object of {\"field_name\": [\"pattern\", ...]}."))
+
+	merged = dict(DEFAULT_FIELD_LABEL_PATTERNS)
+	for field_name, patterns in overrides.items():
+		if isinstance(patterns, list) and patterns:
+			merged[field_name] = patterns
+	return merged
+
+
+def _match_field_in_text(full_text, label_patterns):
+	"""Looks for one of label_patterns in the raw OCR text, immediately
+	followed by a number. Returns (value, confidence) — confidence here is
+	NOT something Google gave us (Vision doesn't score per-field like
+	Document AI does); it's just 0.9 if a label+number match was found,
+	0.0 if it wasn't, so AI Review still flags misses the same way it
+	flags a low-confidence Azure/Document AI field."""
+	for label_pattern in label_patterns:
+		match = re.search(label_pattern + r"\s*[:\-]?\s*([0-9]+(?:\.[0-9]+)?)", full_text, re.IGNORECASE)
+		if match:
+			try:
+				return float(match.group(1)), 0.9
+			except ValueError:
+				continue
+	return 0.0, 0.0
 
 
 def _get_google_access_token(service_account_info):
@@ -227,7 +346,7 @@ def _get_google_access_token(service_account_info):
 	except ImportError:
 		frappe.throw(
 			frappe._(
-				"The 'google-auth' Python package is required for Google Document AI OCR. Install it in "
+				"The 'google-auth' Python package is required for Google Vision OCR. Install it in "
 				"this site's bench environment, e.g.: ./env/bin/pip install google-auth"
 			)
 		)
