@@ -3,19 +3,25 @@
 
 """OCR provider abstraction.
 
-Three providers, selected by `Log Sheet Automation Settings.ocr_provider_mode`:
+`Log Sheet Automation Settings.ocr_provider_mode` is locked to **Google
+Document AI** — it's the only choice offered in Settings, and every OCR
+run goes through it. The Mock and Azure code paths below still exist and
+still work (kept as an offline fallback / reference implementation) but
+`ocr_provider_mode` no longer offers them as a choice, so `extract()`
+below only ever takes the Google branch in normal operation:
 
 - **Mock** — returns fixed canned values, exactly as the original Desk-UI
-  prototype did. Used for demos; requires no credentials.
+  prototype did. No longer reachable from Settings; requires no
+  credentials if you ever re-enable it for offline testing.
 - **Azure** — calls a deployed Azure AI Document Intelligence *custom*
-  extraction model over its REST API (analyze -> poll -> parse). This is
-  real, working integration code, but it has not been exercised against a
-  live Azure endpoint in this environment (no credentials were available
-  when it was written) — verify it against your actual deployed model
-  before relying on it for a go-live. In particular: your model must
-  return numeric fields named exactly `working_hours`, `idle_hours`,
-  `standby_hours`, `breakdown_hours` (train/label the model accordingly,
-  or adjust FIELD_NAMES below to match your model's actual field names).
+  extraction model over its REST API (analyze -> poll -> parse). No
+  longer reachable from Settings either. This is real, working
+  integration code, but it has not been exercised against a live Azure
+  endpoint in this environment (no credentials were available when it was
+  written). In particular: your model must return numeric fields named
+  exactly `working_hours`, `idle_hours`, `standby_hours`,
+  `breakdown_hours` (train/label the model accordingly, or adjust
+  FIELD_NAMES below to match your model's actual field names).
 - **Google Document AI** — calls a deployed Google Cloud Document AI
   processor (a trained/custom extractor) via its REST `:process` endpoint,
   authenticating as the service account whose key JSON is pasted into
