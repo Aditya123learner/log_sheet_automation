@@ -6,7 +6,9 @@ Table of Contents
 
 ## 1\. What this system does
 
-Sanghvi Movers' crane operators fill out a paper log sheet at the end of every shift, recording how many hours a crane was working, idle, on standby, or broken down. Today that paper sheet has to be manually typed up, emailed to the client for sign\-off, checked against maintenance and SAP records by hand, and only then handed to billing. It is slow and error\-prone, and mistakes are usually only caught after the invoice has already gone out.
+Sanghvi Movers' crane operators fill out a paper log sheet covering a **Weekly** or **Monthly** period, recording day by day how many hours a crane worked, its overtime, and (on the Weekly template) breakdown time. Today that paper sheet has to be manually typed up, emailed to the client for sign\-off, checked against maintenance and SAP records by hand, and only then handed to billing. It is slow and error\-prone, and mistakes are usually only caught after the invoice has already gone out.
+
+> **Note (2026\-10):** this guide was originally written around a one\-record\-per\-single\-day prototype. After reviewing the real Sanghvi Movers paper templates, the app was restructured so one **Equipment Log Sheet** record covers a whole Weekly or Monthly sheet, with a **Daily Log** row per day — closer to how the paper actually works. Sections below have been updated to match; the overall workflow (OCR → client approval → Maintenance/SAP → Operations → Billing) is unchanged.
 
 The **Log Sheet Automation** app turns that paper process into a single ERPNext record — the **Equipment Log Sheet** — that moves itself through every stage automatically:
 
@@ -111,11 +113,13 @@ The control panel for the two external integrations, both of which run in **Mock
 
 | Field | Purpose |
 | --- | --- |
-| OCR Provider Mode | Mock (demo) or Azure (real Document Intelligence, for production). |
+| OCR Provider Mode | Locked to Google Vision API for this deployment (Mock still exists in code as an offline fallback, but isn't selectable here). |
+| Google Service Account Key (JSON) | The one credential OCR needs — paste the full service account key JSON here. |
+| OCR Daily Row Pattern (regex) | Tunes how Vision's raw recognized text gets split into one Daily Log row per day — edit this once you've seen real OCR output, no code change needed. |
+| OCR Field Label Patterns (JSON) | Secondary tool for matching an optional whole\-sheet total printed as a single labelled value. |
 | OCR Timeout (seconds) | How long to wait for the OCR provider before failing. |
-| Mock OCR Low\-Confidence Threshold | Below this score, Mock OCR marks a field low\-confidence and routes the sheet to AI Review. |
-| Azure Document Intelligence Endpoint / API Key | Only used once Provider Mode \= Azure. |
-| SAP Provider Mode | Mock (demo) or Live. |
+| Mock OCR Low\-Confidence Threshold | Below this score, an extracted Daily Log row is marked low\-confidence and routes the sheet to AI Review. |
+| SAP Provider Mode | Locked to Live for this deployment. |
 | Mock SAP Scenario | Lets you demo the three SAP outcomes on demand: **PASS**, **EXPIRED\_SO**, **INSUFFICIENT\_QTY** — switch this before clicking "Run SAP Validation" to show the exception path. |
 | SAP Timeout (seconds) | Timeout for the (future) live SAP call. |
 | SAP Endpoint / Auth Type / Credential | Only used once Provider Mode \= Live. |
@@ -137,11 +141,13 @@ This is the main record. Its fields are grouped into sections that match the bus
 
 | Field | Notes |
 | --- | --- |
-| Series / Log Date / Shift | The sheet's identity — one sheet per site \+ equipment \+ date \+ shift (the system blocks duplicates for the same combination). |
+| Sheet Template | **Weekly** or **Monthly** — which real paper template this record represents; the form shows/hides a few fields below depending on which. |
+| Log Sheet No. | Printed sheet number (the Weekly template numbers each sheet; Monthly doesn't print one). |
+| Month / Period Start Date / Period End Date | The sheet's identity — one sheet per site \+ equipment \+ template \+ period start date (the system blocks duplicates for the same combination). |
 | Operating Site | Which yard. |
 | Customer | Auto\-filled from the site. |
 | Equipment | Which crane (an ERPNext Asset). |
-| Operator | Who is logging the shift. |
+| Operator | Who is logging the period. |
 
 ### 4\.3 Source Document / OCR
 
@@ -153,25 +159,23 @@ This is the main record. Its fields are grouped into sections that match the bus
 | OCR Provider Result ID | Reference ID from the OCR run, for traceability. |
 | OCR Review Complete | The operator ticks this once they've eyeballed any low\-confidence fields OCR flagged. |
 
-### 4\.4 Utilization
+### 4\.4 Daily Log and Utilization
 
-The actual hours for the shift — either typed by the operator or filled in by OCR.
+The **Daily Log** (`daily_rows`) table is where the actual hours live now — one row per day on the printed sheet, either typed by the operator or filled in by OCR: Day, Date, Working Time From/To, Total Hours, Normal Shift Hours, Overtime Hours, Breakdown Hours (Weekly template only), signature checkboxes, and a Work Description. Every hour field on every row is validated to be between 0 and 24.
+
+The **Utilization** section just below it is now **computed, read\-only** — summed straight from the Daily Log every time the sheet is saved:
 
 | Field | Notes |
 | --- | --- |
-| Start Time / End Time | Shift boundaries. |
-| Working Hours | Productive crane time. |
-| Idle Hours | Powered on, not working. |
-| Standby Hours | Held on\-site awaiting instruction. |
-| Breakdown Hours | Equipment fault time. |
-| Overtime Hours | Hours beyond the standard shift. |
+| Working Hours | Sum of Total Hours across every Daily Log row. |
+| Idle Hours / Standby Hours | Always 0 — neither real paper template tracks these as a distinct value; the fields are kept on the schema so nothing downstream (billing calculation, SAP payload) needed to change. |
+| Breakdown Hours | Sum of Breakdown Hours across every Daily Log row. |
+| Overtime Hours | Sum of Overtime Hours across every Daily Log row. |
 | Operator Remarks | Free text. |
-
-Every hour field is validated to be between 0 and 24.
 
 ### 4\.5 Breakdown Intervals (table)
 
-If there was a breakdown, each individual stoppage is logged here — from/to time, duration, a reason code (Mechanical / Electrical / Hydraulic / Operator / Other), which component failed, remarks, and optionally a photo of the fault.
+If there was a breakdown, each individual stoppage can optionally be logged here with more detail than the Daily Log's per\-day Breakdown Hours total — from/to time, duration, a reason code (Mechanical / Electrical / Hydraulic / Operator / Other), which component failed, remarks, and optionally a photo of the fault.
 
 ### 4\.6 Commercial Mapping
 
@@ -229,15 +233,15 @@ A running log of every decision made on the sheet — event type, who (or "Guest
 
 This is the exact sequence to show a client end\-to\-end, using the roles above. In this environment one admin user holds all the roles, so you'll be clicking through every step yourself — in production, different people at different desks would do each one.
 
-**Step 1 — Create the log sheet.** From the workspace, click **New Log Sheet**. Fill in Log Date, Shift, Operating Site, Equipment, Operator, and the commercial\-mapping fields (Sales Order/Item, Work Order, UOM, Rate Key), pick a Billing Rule, and save. Workflow State opens as **Draft**.
+**Step 1 — Create the log sheet.** From the workspace, click **New Log Sheet**. Fill in Sheet Template (Weekly/Monthly), Month, Period Start/End Date, Operating Site, Equipment, Operator, and the commercial\-mapping fields (Sales Order/Item, Work Order, UOM, Rate Key), pick a Billing Rule, and save. Workflow State opens as **Draft**.
 
-**Step 2 — Run OCR.** Open the saved sheet and click **Run OCR** (top toolbar button, visible to the Operator role while the sheet is Draft/AI Review). The Mock OCR provider fills in the utilization hours and logs a validation result per field; the sheet moves to **AI Review** if anything came back low\-confidence.
+**Step 2 — Run OCR.** Open the saved sheet and click **Run OCR** (top toolbar button, visible to the Operator role while the sheet is Draft/AI Review). The Google Vision provider (or Mock, offline) fills in the Daily Log with one row per day it read off the scan and logs a validation result per row; the sheet moves to **AI Review** if any row came back low\-confidence.
 
-**Step 3 — Clear AI Review.** Tick **OCR Review Complete** and save (or use the "Ready for Client" flow) once the operator has eyeballed the flagged fields.
+**Step 3 — Clear AI Review.** Review the Daily Log rows OCR filled in, correct anything wrong, tick **OCR Review Complete** and save once the operator has eyeballed the flagged rows.
 
 **Step 4 — Generate the client approval link.** Click **Generate Client Approval Link**. The system creates a one\-time, time\-limited link and moves the sheet to **Client Approval Pending**. In production this link is emailed/texted to the client; in the demo you open it directly in a private browser tab to show it needs no login.
 
-**Step 5 — Client approves (or rejects) on the public page.** The client sees the key figures (site, equipment, date, shift, the hour breakdown) and two buttons — Approve / Reject. Approving moves the sheet straight into **Parallel Validation** and opens both the Maintenance and SAP gates at once. Rejecting sends it to **Operator Rework** with the client's comment.
+**Step 5 — Client approves (or rejects) on the public page.** The client sees the key figures (site, equipment, sheet template/month/period, the day\-by\-day table, the hour totals) and two buttons — Approve / Reject. Approving moves the sheet straight into **Parallel Validation** and opens both the Maintenance and SAP gates at once. Rejecting sends it to **Operator Rework** with the client's comment.
 
 **Step 6 — Record the Maintenance decision.** As the Maintenance Approver, click **Record Maintenance Decision**, choose Approved (or Rejected with a reason code and comment), and submit.
 
@@ -254,7 +258,7 @@ This is the exact sequence to show a client end\-to\-end, using the roles above.
 
 **Step 10 — Show the paper trail.** Open the **Approval Event History** table to walk through every decision in order, and use **Print → Log Sheet Approval Summary** to show the client\-ready one\-page summary (identity, utilization, every decision, the latest SAP checks, and the billing calculation — no internal security fields).
 
-> **Bonus for the demo:** two other log sheets are pre\-loaded (LS\-2026\-00001, LS\-2026\-00002) that already show the exception paths — a SAP exception that was corrected and re\-validated, a Maintenance rejection, and a case where editing the hours *after* client approval automatically revoked that approval and sent the sheet back for a fresh sign\-off. A third (LS\-2026\-00003) is a clean run of the happy path end\-to\-end, already Closed, ready to open and narrate.
+> **Bonus for the demo:** two other log sheets are pre\-loaded (LS\-2026\-00001, LS\-2026\-00002) that already show the exception paths — a SAP exception that was corrected and re\-validated, a Maintenance rejection, and a case where editing a Daily Log row *after* client approval automatically revoked that approval (BR\-007's content\-hash check) and sent the sheet back for a fresh sign\-off. A third (LS\-2026\-00003) is a clean run of the happy path end\-to\-end, already Closed, ready to open and narrate.
 
 ## 6\. Oversight dashboard
 
@@ -266,6 +270,7 @@ The **Log Sheet Automation** workspace (left sidebar) is the home screen for the
 
 ## 7\. What's deliberately out of scope for this MVP
 
-- Real OCR and real SAP connectivity — both integrations run in **Mock** mode; swapping in Azure Document Intelligence and a live SAP endpoint only requires changing the settings above, the workflow logic does not need to change.
-- Automated email/SMS delivery of the client approval link — the link is generated and shown for the demo; wiring it to an actual notification channel is a follow\-on task.
+- Real OCR and real SAP connectivity — **done** since this guide was first written: OCR now calls Google Vision API and SAP validation calls a live, configurable REST endpoint, both behind the same Settings surface described above.
+- Automated email/SMS delivery of the client approval link — **done**: Email via the site's Email Account, SMS via Twilio.
+- Verifying the OCR Daily Row Pattern against real Vision API output — it's been reviewed against the real paper templates but not yet run through a live Vision API call in this environment; treat extracted rows as needing a human check in AI Review until that's been done (see `Log Sheet Automation Settings > OCR Daily Row Pattern`).
 - This build was assembled directly on the ERPNext Desk UI (DocTypes, Server Scripts, Client Scripts, Workspace) rather than as a separate installed, git\-tracked application — see the companion Technical document for what that means and what promoting it to a proper app would involve.

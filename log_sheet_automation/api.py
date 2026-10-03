@@ -1,6 +1,24 @@
 # Copyright (c) 2026, Logic Motive Consultant and contributors
 # For license information, please see license.txt
 
+"""Whitelisted API surface for Log Sheet Automation.
+
+Nine endpoints, matching the SRS's Appendix B "controller methods". Two are
+guest-accessible (the public client approval page hits these with no
+session): `get_log_sheet_approval_snapshot` (GET) and
+`record_log_sheet_client_decision` (POST). Everything else requires one of
+the module's own roles, checked explicitly below with `frappe.get_roles()`
+rather than relying on DocType-level permissions alone, because these are
+workflow *actions* (approve/reject/close), not plain field writes — see the
+Technical Design document §3.1 for why the two are checked separately.
+
+Every mutating endpoint here is POST-only in practice: call it with GET and
+nothing gets persisted (this was confirmed empirically against Frappe
+during the original prototype — a GET request against a whitelisted method
+does not reliably auto-commit the write). `get_log_sheet_approval_snapshot`
+is the one read-only, GET-safe exception.
+"""
+
 import json
 
 import frappe
@@ -48,14 +66,18 @@ def _log_event(doc, event_type, prior_state, new_state, decision, actor_role, co
 
 
 # ---------------------------------------------------------------------------
-# 1. OCR (Mock or Azure Document Intelligence, per Settings)
+# 1. OCR (Mock or Google Vision API, per Settings)
 # ---------------------------------------------------------------------------
 
 @frappe.whitelist()
 def run_log_sheet_ocr(name):
 	"""Run OCR extraction against a Draft/AI Review log sheet. Dispatches to
-	the Mock or Azure provider per `Log Sheet Automation Settings.ocr_provider_mode`
-	— see log_sheet_automation/integrations/ocr.py."""
+	the Mock or Google Vision provider per
+	`Log Sheet Automation Settings.ocr_provider_mode` — see
+	log_sheet_automation/integrations/ocr.py. Populates `daily_rows` (one
+	row per day the scan shows) rather than scalar hour fields — the header
+	totals (working_hours etc.) are then recomputed automatically from those
+	rows by Equipment Log Sheet's own validate() on doc.save() below."""
 	_require_role("Log Sheet Operator", "Log Sheet Manager", "System Manager")
 
 	doc = frappe.get_doc("Equipment Log Sheet", name)
@@ -65,22 +87,41 @@ def run_log_sheet_ocr(name):
 	settings = _get_settings()
 	threshold = flt(settings.mock_ocr_confidence_low_threshold) or 0.75
 
-	run_id, extracted, ocr_meta = ocr_integration.extract(doc, settings)
+	run_id, day_rows, ocr_meta = ocr_integration.extract(doc, settings)
+
+	# OCR is meant to populate the sheet fresh from a scan, not merge with
+	# whatever's already there — re-running it on the same sheet replaces
+	# the previous run's rows rather than appending alongside them.
+	doc.set("daily_rows", [])
 
 	low_confidence = False
-	for row in extracted:
-		doc.set(row["field"], row["value"])
-		status = "Passed" if row["confidence"] >= threshold else "Exception"
+	for i, row in enumerate(day_rows, start=1):
+		confidence = flt(row.get("confidence"))
+		status = "Passed" if confidence >= threshold else "Exception"
 		low_confidence = low_confidence or status == "Exception"
+		doc.append(
+			"daily_rows",
+			{
+				"day_label": row.get("day_label"),
+				"log_date": row.get("log_date"),
+				"from_time": row.get("from_time"),
+				"to_time": row.get("to_time"),
+				"total_hours": row.get("total_hours") or 0,
+				"normal_shift_hours": row.get("normal_shift_hours") or 0,
+				"overtime_hours": row.get("overtime_hours") or 0,
+				"breakdown_hours": row.get("breakdown_hours") or 0,
+				"work_description": row.get("work_description"),
+			},
+		)
 		doc.append(
 			"validation_table",
 			{
 				"validation_type": "OCR",
 				"run_id": run_id,
-				"check_code": row["field"],
+				"check_code": f"day_{i}_{row.get('log_date') or 'unknown'}",
 				"status": status,
-				"message": f"Extracted {row['value']} with confidence {row['confidence']}",
-				"input_summary": json.dumps({"field": row["field"], "confidence": row["confidence"]}),
+				"message": f"Row {i}: extracted total_hours={row.get('total_hours')} with confidence {confidence}",
+				"input_summary": json.dumps({"log_date": str(row.get("log_date")), "confidence": confidence}),
 				"source_timestamp": now_datetime(),
 				"provider_mode": settings.ocr_provider_mode,
 				"is_current": 1,
@@ -92,13 +133,16 @@ def run_log_sheet_ocr(name):
 	doc.ocr_review_complete = 0 if low_confidence else 1
 	doc.workflow_state = "AI Review"
 
-	comment = f"{settings.ocr_provider_mode} OCR run {run_id}. Low-confidence fields require review: {low_confidence}"
+	comment = (
+		f"{settings.ocr_provider_mode} OCR run {run_id}: extracted {len(day_rows)} Daily Log row(s). "
+		f"Low-confidence rows require review: {low_confidence}"
+	)
 	if ocr_meta.get("raw_text"):
 		# For Google Vision: the raw text it recognized off the image, so
 		# whoever reviews this run can see exactly what to put into
-		# Settings > OCR Field Label Patterns without digging through
-		# server logs. See integrations/ocr.py's module docstring.
-		comment += f"\n\nRaw OCR text (for tuning field label patterns):\n{ocr_meta['raw_text']}"
+		# Settings > OCR Daily Row Pattern without digging through server
+		# logs. See integrations/ocr.py's module docstring.
+		comment += f"\n\nRaw OCR text (for tuning the daily row pattern):\n{ocr_meta['raw_text']}"
 
 	_log_event(
 		doc, "System", "Draft", "AI Review", "OCR Completed", "Log Sheet Operator",
@@ -106,7 +150,13 @@ def run_log_sheet_ocr(name):
 	)
 
 	doc.save()
-	return {"ok": True, "run_id": run_id, "low_confidence": low_confidence, "workflow_state": doc.workflow_state}
+	return {
+		"ok": True,
+		"run_id": run_id,
+		"rows_extracted": len(day_rows),
+		"low_confidence": low_confidence,
+		"workflow_state": doc.workflow_state,
+	}
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +175,10 @@ def generate_log_sheet_client_link(name):
 		frappe.throw(_("This log already has an approved client decision."))
 
 	# BR-001: mandatory identity fields
-	missing = [fn for fn in ("operating_site", "equipment", "log_date") if not doc.get(fn)]
+	missing = [
+		fn for fn in ("operating_site", "equipment", "sheet_template", "period_start_date")
+		if not doc.get(fn)
+	]
 	if not doc.operator_user:
 		missing.append("operator_user")
 	if missing:
@@ -135,21 +188,21 @@ def generate_log_sheet_client_link(name):
 	if doc.ocr_status == "Completed" and not doc.ocr_review_complete:
 		frappe.throw(_("Confirm low-confidence OCR fields before generating the client link (BR-006)."))
 
-	# BR-005: an active commercial mapping must exist for this site/equipment/date
+	# BR-005: an active commercial mapping must exist for this site/equipment/period
 	mapping = frappe.get_all(
 		"Site Equipment Commercial Mapping",
 		filters={
 			"operating_site": doc.operating_site,
 			"equipment": doc.equipment,
 			"is_active": 1,
-			"valid_from": ["<=", doc.log_date],
+			"valid_from": ["<=", doc.period_start_date],
 		},
 		fields=["name", "sap_sales_order", "sap_sales_order_item", "work_order_reference", "uom", "rate_key", "billing_rule"],
 		order_by="valid_from desc",
 		limit_page_length=1,
 	)
 	if not mapping:
-		frappe.throw(_("No active Site Equipment Commercial Mapping for this site/equipment/date (BR-005)."))
+		frappe.throw(_("No active Site Equipment Commercial Mapping for this site/equipment/period (BR-005)."))
 
 	m = mapping[0]
 	doc.sap_sales_order = m.sap_sales_order
@@ -162,8 +215,10 @@ def generate_log_sheet_client_link(name):
 
 	snapshot = {
 		"name": doc.name,
-		"log_date": str(doc.log_date),
-		"shift": doc.shift,
+		"sheet_template": doc.sheet_template,
+		"month": doc.month,
+		"period_start_date": str(doc.period_start_date) if doc.period_start_date else None,
+		"period_end_date": str(doc.period_end_date) if doc.period_end_date else None,
 		"operating_site": doc.operating_site,
 		"equipment": doc.equipment,
 		"working_hours": doc.working_hours,
@@ -171,6 +226,19 @@ def generate_log_sheet_client_link(name):
 		"standby_hours": doc.standby_hours,
 		"breakdown_hours": doc.breakdown_hours,
 		"overtime_hours": doc.overtime_hours,
+		# Daily rows are part of the snapshot too, so a per-day edit (not
+		# just a header-field edit) after the link is generated is also
+		# caught by comparing client_snapshot_hash at decision time.
+		"daily_rows": [
+			{
+				"log_date": str(row.log_date) if row.log_date else None,
+				"total_hours": row.total_hours,
+				"normal_shift_hours": row.normal_shift_hours,
+				"overtime_hours": row.overtime_hours,
+				"breakdown_hours": row.breakdown_hours,
+			}
+			for row in doc.daily_rows
+		],
 	}
 	snapshot_hash = sha256_hash(json.dumps(snapshot, sort_keys=True))
 
@@ -250,13 +318,29 @@ def get_log_sheet_approval_snapshot(token=None):
 		"ok": True,
 		"site": doc.operating_site,
 		"equipment": doc.equipment,
-		"log_date": str(doc.log_date),
-		"shift": doc.shift,
+		"sheet_template": doc.sheet_template,
+		"month": doc.month,
+		"period_start_date": str(doc.period_start_date) if doc.period_start_date else None,
+		"period_end_date": str(doc.period_end_date) if doc.period_end_date else None,
 		"working_hours": doc.working_hours,
 		"idle_hours": doc.idle_hours,
 		"standby_hours": doc.standby_hours,
 		"breakdown_hours": doc.breakdown_hours,
 		"overtime_hours": doc.overtime_hours,
+		"daily_rows": [
+			{
+				"log_date": str(row.log_date) if row.log_date else None,
+				"day_label": row.day_label,
+				"from_time": str(row.from_time) if row.from_time else None,
+				"to_time": str(row.to_time) if row.to_time else None,
+				"total_hours": row.total_hours,
+				"normal_shift_hours": row.normal_shift_hours,
+				"overtime_hours": row.overtime_hours,
+				"breakdown_hours": row.breakdown_hours,
+				"work_description": row.work_description,
+			}
+			for row in doc.daily_rows
+		],
 		"snapshot_hash": doc.client_snapshot_hash,
 	}
 
@@ -296,6 +380,10 @@ def record_log_sheet_client_decision(token=None, decision=None, comment=None):
 
 	if decision == "Approve":
 		doc.client_approval_status = "Approved"
+		# Captured now so equipment_log_sheet.py's BR-007 check can detect
+		# ANY later edit — including inside the daily_rows child table — by
+		# comparing against this baseline on every subsequent save.
+		doc.approved_content_hash = doc.compute_content_hash()
 		# BR-003: approval opens BOTH parallel gates at once.
 		doc.maintenance_status = "Pending"
 		doc.sap_validation_status = "Pending"

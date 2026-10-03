@@ -29,7 +29,10 @@ Module Def: **Log Sheet Automation**.
 | Equipment Log Breakdown | Child table | Breakdown intervals on a log sheet |
 | Equipment Log Validation | Child table | OCR/SAP/Business check results |
 | Equipment Log Approval Event | Child table | Immutable audit trail |
-| **Equipment Log Sheet** | **Main transaction** | The daily log sheet \+ workflow state machine |
+| Equipment Log Sheet Day | Child table | One day's row within a Weekly/Monthly log sheet |
+| **Equipment Log Sheet** | **Main transaction** | The Weekly/Monthly log sheet \+ workflow state machine |
+
+> **Schema note (2026\-10):** Equipment Log Sheet was restructured after the real Sanghvi Movers paper log sheets were reviewed — see §4 below. It moved from "one record per single day\+shift" to "one record per Weekly/Monthly physical sheet, with a Daily Log child\-table row (`Equipment Log Sheet Day`) per day." The rest of this document was written against the original one\-record\-per\-day shape and has been updated where it matters (§4, §5.1, §5.3); §9's RestrictedPython discoveries are historical and left as\-is.
 
 ## 3\. Roles
 
@@ -63,8 +66,11 @@ state_entered_on        Datetime RO
 
 --- Section: Header ---
 naming_series            Select   LS-.YYYY.-.#####
-log_date                  Date     required
-shift                      Select   Day | Night | General            required
+sheet_template            Select   Weekly | Monthly                  required  (which physical template)
+log_sheet_no              Data     (printed sheet number — Weekly only prints one)
+month                      Data     required  (as printed, e.g. "September 2026")
+period_start_date         Date     required
+period_end_date           Date     required
 operating_site            Link     Operating Site                    required
 customer                   Link     Customer                          RO (fetched)
 equipment                  Link     Asset                             required
@@ -77,12 +83,15 @@ ocr_status                 Select   Not Run|Queued|Completed|Failed   RO
 ocr_provider_result_id    Data     RO
 ocr_review_complete       Check
 
---- Section: Utilization ---
-start_time / end_time     Time
-working_hours / idle_hours / standby_hours / breakdown_hours / overtime_hours   Float  (0-24 validated)
+--- Section: Daily Log ---
+daily_rows                 Table    Equipment Log Sheet Day   — one row per day; this is what OCR fills
+
+--- Section: Utilization (computed from Daily Log on every save) ---
+working_hours / breakdown_hours / overtime_hours   Float  RO  (summed from daily_rows)
+idle_hours / standby_hours                            Float  RO  default 0 (neither real template tracks these — kept on the schema, always forced to 0)
 operator_remarks          Small Text
 
---- Section: Breakdown ---
+--- Section: Breakdown Incident Detail (separate from the per-day breakdown_hours total) ---
 breakdown_table            Table    Equipment Log Breakdown
 
 --- Section: Commercial Mapping (fetched from Site Equipment Commercial Mapping, RO on the sheet) ---
@@ -94,7 +103,8 @@ client_approval_status    Select   Not Requested|Pending|Approved|Rejected|Expir
 client_decision_on        Datetime RO
 client_token_hash         Data     RO   (SHA-256 of the opaque token — token itself never stored)
 client_token_expiry       Datetime RO
-client_snapshot_hash      Data     RO   (SHA-256 of the canonical JSON the client saw)
+client_snapshot_hash      Data     RO   (SHA-256 of the canonical JSON the client saw, incl. daily_rows)
+approved_content_hash    Data     RO   (SHA-256 of header identity fields + every Daily Log row, captured at approval — BR-007's baseline)
 client_comment             Small Text
 
 --- Section: Parallel Validation ---
@@ -119,13 +129,24 @@ billing_hold_reason        Small Text
 sap_document_reference     Data
 closed_on                    Datetime RO
 
+--- Section: Sheet Sign-off (as printed; record-keeping only, no workflow logic reads these) ---
+hour_meter_opening / hour_meter_closing      Float   (Weekly only)
+total_working_days_words                      Data
+total_overtime_hours_words                    Data
+total_breakdown_hours_words                   Data   (Weekly only)
+site_engineer_name                             Data
+mechanical_hod_name                            Data   (Monthly only)
+project_manager_name                           Data
+
 --- Section: Audit ---
 approval_events             Table    Equipment Log Approval Event   RO
 ```
 
 ### 4\.1 Child DocTypes
 
-**Equipment Log Breakdown** (`istable=1`): `from_time`, `to_time`, `duration_hours` (Float), `reason_code` (Select: Mechanical/Electrical/Hydraulic/Operator/Other), `component` (Data), `remarks` (Small Text), `evidence_attachment` (Attach).
+**Equipment Log Sheet Day** (`istable=1`): `day_label` (Data — printed day name, Weekly only), `log_date` (Date, required), `from_time` / `to_time` (Time), `total_hours` / `normal_shift_hours` / `overtime_hours` / `breakdown_hours` (Float, 0\-24 validated — `breakdown_hours` only meaningful on Weekly), `sign_of_crane_operator` / `sign_of_user` (Check), `work_description` (Small Text). This is what OCR populates and what the header's `working_hours`/`breakdown_hours`/`overtime_hours` are summed from.
+
+**Equipment Log Breakdown** (`istable=1`): `from_time`, `to_time`, `duration_hours` (Float), `reason_code` (Select: Mechanical/Electrical/Hydraulic/Operator/Other), `component` (Data), `remarks` (Small Text), `evidence_attachment` (Attach). Incident\-level detail, separate from the per\-day `breakdown_hours` total in the Daily Log.
 
 **Equipment Log Validation** (`istable=1`): `validation_type` (Select: OCR/Business/SAP), `run_id` (Data), `check_code` (Data), `status` (Select: Passed/Exception/Failed/Pending), `message` (Small Text), `input_summary` (Small Text), `source_timestamp` (Datetime), `provider_mode` (Select: Mock/Live/Azure), `is_current` (Check — only the latest run per `validation_type` is flagged current).
 
@@ -133,57 +154,63 @@ approval_events             Table    Equipment Log Approval Event   RO
 
 ## 5\. Server\-side logic
 
-### 5\.1 `Equipment Log Sheet - Validate` (DocType Event → Before Save)
+### 5\.1 `Equipment Log Sheet - Validate` (now `equipment_log_sheet.py`'s `validate()`)
 
-This is the single source of truth for the state machine. It runs on **every** save of an Equipment Log Sheet, including the internal `d.save()` calls made by the API methods in §5.2.
+This is the single source of truth for the state machine. It runs on **every** save of an Equipment Log Sheet, including the internal `d.save()` calls made by the API methods in §5.2. The pseudocode below reflects the current, restructured model (one record per Weekly/Monthly sheet, `daily_rows` child table) — see the schema note at the top of §4.
 
 ```python
-hour_fields = ["working_hours","idle_hours","standby_hours","breakdown_hours","overtime_hours"]
-for f in hour_fields:
-	v = frappe.utils.flt(doc.get(f))
-	if v < 0 or v > 24:
-		frappe.throw(f"{f} must be between 0 and 24 hours (BR-002).")
+if doc.period_start_date and doc.period_end_date and getdate(doc.period_end_date) < getdate(doc.period_start_date):
+	frappe.throw("Period End Date cannot be before Period Start Date.")
 
-if doc.operating_site and doc.equipment and doc.log_date and doc.shift:
+for row in doc.daily_rows:
+	for f in ["total_hours","normal_shift_hours","overtime_hours","breakdown_hours"]:
+		v = frappe.utils.flt(row.get(f))
+		if v < 0 or v > 24:
+			frappe.throw(f"Daily Log row {row.idx}: {f} must be between 0 and 24 hours (BR-002).")
+
+if doc.operating_site and doc.equipment and doc.sheet_template and doc.period_start_date:
 	dup = frappe.db.get_value("Equipment Log Sheet", {
 		"operating_site": doc.operating_site,
 		"equipment": doc.equipment,
-		"log_date": doc.log_date,
-		"shift": doc.shift,
+		"sheet_template": doc.sheet_template,
+		"period_start_date": doc.period_start_date,
 		"workflow_state": ["!=", "Void"],
 		"name": ["!=", doc.name or ""],
 	}, "name")
 	if dup:
-		frappe.throw(f"Duplicate log already exists for this site, equipment, date and shift: {dup} (BR-004).")
+		frappe.throw(f"Duplicate log already exists for this site, equipment, template and period: {dup} (BR-004).")
 
-if not doc.is_new() and doc.client_approval_status == "Approved" and not doc.flags.get("skip_material_check"):
-	numeric_fields = ["working_hours","idle_hours","standby_hours","breakdown_hours","overtime_hours"]
-	text_fields = ["operating_site","equipment","log_date","shift","sap_sales_order","sap_sales_order_item"]
-	material_fields = numeric_fields + text_fields
-	before = frappe.db.get_value("Equipment Log Sheet", doc.name, material_fields, as_dict=True)
-	if before:
-		changed = []
-		for f in numeric_fields:
-			if frappe.utils.flt(before.get(f)) != frappe.utils.flt(doc.get(f)):
-				changed.append(f)
-		for f in text_fields:
-			if str(before.get(f) or "") != str(doc.get(f) or ""):
-				changed.append(f)
-		if changed:
-			doc.client_approval_status = "Not Requested"
-			doc.client_token_hash = None
-			doc.client_token_expiry = None
-			doc.client_snapshot_hash = None
-			doc.append("approval_events", {
-				"event_type": "System",
-				"prior_state": doc.workflow_state,
-				"new_state": "Ready for Client",
-				"decision": "Revoked",
-				"actor": frappe.session.user,
-				"actor_role": "System",
-				"event_time": frappe.utils.now_datetime(),
-				"comment": "Material fields changed after client approval: " + ", ".join(changed) + ". Approval revoked (BR-007).",
-			})
+# Header totals are computed, not entered — summed straight from the Daily Log.
+doc.working_hours = sum(flt(r.total_hours) for r in doc.daily_rows)
+doc.breakdown_hours = sum(flt(r.breakdown_hours) for r in doc.daily_rows)
+doc.overtime_hours = sum(flt(r.overtime_hours) for r in doc.daily_rows)
+doc.idle_hours = 0     # neither real template tracks this distinction — always 0
+doc.standby_hours = 0  # same
+
+if not doc.is_new() and doc.client_approval_status == "Approved" and not doc.flags.get("skip_material_check") and doc.approved_content_hash:
+	# compute_content_hash() hashes operating_site/equipment/sheet_template/
+	# period_start_date/period_end_date + every daily_rows row's content.
+	# approved_content_hash was captured at the moment the client approved
+	# (record_log_sheet_client_decision) — comparing against a fixed
+	# baseline, rather than re-querying the DB's "before" scalar values,
+	# is what lets this catch an edit INSIDE the daily_rows child table,
+	# which a simple frappe.db.get_value diff can't see.
+	if doc.compute_content_hash() != doc.approved_content_hash:
+		doc.client_approval_status = "Not Requested"
+		doc.client_token_hash = None
+		doc.client_token_expiry = None
+		doc.client_snapshot_hash = None
+		doc.approved_content_hash = None
+		doc.append("approval_events", {
+			"event_type": "System",
+			"prior_state": doc.workflow_state,
+			"new_state": "Ready for Client",
+			"decision": "Revoked",
+			"actor": frappe.session.user,
+			"actor_role": "System",
+			"event_time": frappe.utils.now_datetime(),
+			"comment": "Header fields or Daily Log rows changed after client approval. Approval revoked (BR-007).",
+		})
 
 if doc.workflow_state != "Void":
 	if doc.billing_status == "Closed":
@@ -224,7 +251,7 @@ doc.current_owner_role = owner_map.get(doc.workflow_state, "")
 **Design notes:**
 
 - **`workflow_state` is always derived, never hand\-set** by an API method except for the three states that precede client approval (Draft / AI Review / Ready for Client) and the terminal `Closed`/`Void` states — everything from "Client Approval Pending" onward is recomputed from the four gate\-status fields on every save. This means a bug that directly sets `workflow_state` incorrectly self\-heals on the next save; it also means **the priority order of the `if/elif` chain above *is* the business rule** — read it top\-to\-bottom as the precedence: Closed beats everything, then client approval, then Maintenance rejection, then SAP exception, then Operations return, then the "both gates clear" happy path, else Parallel Validation.
-- **BR\-007** (material\-field edit after approval revokes it) intentionally compares `numeric_fields` via `frappe.utils.flt()` and `text_fields` via `str()` — a naive equality check across the two groups produced false positives (Decimal\-vs\-float string mismatches) during testing; see §9.
+- **BR\-007** (material\-field edit after approval revokes it) was originally a two\-field\-group DB diff (`numeric_fields` via `frappe.utils.flt()`, `text_fields` via `str()` — see §9 for why those needed separate comparison). After the restructuring it compares a **hash captured at approval time** (`approved_content_hash`) against a hash recomputed from the document's current state on every later save, because the old DB\-diff approach has no clean way to detect an edit inside a child table (`daily_rows`) — see `compute_content_hash()` in `equipment_log_sheet.py`.
 
 ### 5\.2 Whitelisted API methods (Server Script, type \= API)
 
@@ -244,7 +271,7 @@ All nine are `@frappe.whitelist()`\-equivalent Server Scripts (`script_type = "A
 
 **What each one does:**
 
-- **`run_log_sheet_ocr`** — Mock\-OCR fills the utilization hours, logs a per\-field validation row, sets `ocr_status` and `workflow_state = AI Review`.
+- **`run_log_sheet_ocr`** — dispatches to Mock or Google Vision API (per Settings), populates `daily_rows` (one row per day the scan shows — replacing whatever was there from a previous run), logs a per\-row validation entry, sets `ocr_status` and `workflow_state = AI Review`. The header utilization totals are *not* set here directly — they're recomputed from `daily_rows` by `validate()` on the `doc.save()` this method makes.
 - **`generate_log_sheet_client_link`** — issues an opaque token, hashes and stores it, snapshots the figures being approved, sets `workflow_state = Client Approval Pending`.
 - **`get_log_sheet_approval_snapshot`** — returns the figures for the public guest page, or the generic error.
 - **`record_log_sheet_client_decision`** — records the client's Approve/Reject; on Approve it opens both parallel gates at once (`maintenance_status` and `sap_validation_status` → `Pending`).
@@ -343,12 +370,12 @@ else:  # Close
 
 | Rule | Enforced in | Behaviour |
 | --- | --- | --- |
-| **BR\-001** | `generate_log_sheet_client_link` | Blocks link generation if `operating_site`, `equipment`, `log_date`, or `operator_user` is missing. |
-| **BR\-002** | `Equipment Log Sheet - Validate` | Every hour field must be 0–24. |
-| **BR\-004** | `Equipment Log Sheet - Validate` | One log per (site, equipment, date, shift) combination among non\-Void records. |
-| **BR\-005** | `generate_log_sheet_client_link` | An active Commercial Mapping valid as of `log_date` must exist; its SAP/UOM/rate/billing\-rule fields are pulled onto the sheet. |
-| **BR\-006** | `generate_log_sheet_client_link` | If OCR ran and flagged low\-confidence fields, `ocr_review_complete` must be ticked before a client link can be generated. |
-| **BR\-007** | `Equipment Log Sheet - Validate` | Editing a material field (hours, site, equipment, date, shift, SAP SO/item) after `client_approval_status = Approved` resets it to `Not Requested` and clears the token/snapshot — approval must be re\-obtained. |
+| **BR\-001** | `generate_log_sheet_client_link` | Blocks link generation if `operating_site`, `equipment`, `sheet_template`, `period_start_date`, or `operator_user` is missing. |
+| **BR\-002** | `Equipment Log Sheet - Validate` | Every hour field on every Daily Log row must be 0–24. |
+| **BR\-004** | `Equipment Log Sheet - Validate` | One log per (site, equipment, sheet template, period start date) combination among non\-Void records. |
+| **BR\-005** | `generate_log_sheet_client_link` | An active Commercial Mapping valid as of `period_start_date` must exist; its SAP/UOM/rate/billing\-rule fields are pulled onto the sheet. |
+| **BR\-006** | `generate_log_sheet_client_link` | If OCR ran and flagged low\-confidence rows, `ocr_review_complete` must be ticked before a client link can be generated. |
+| **BR\-007** | `Equipment Log Sheet - Validate` | Editing a header identity field or any Daily Log row after `client_approval_status = Approved` resets it to `Not Requested` and clears the token/snapshot/approved\-content hash — approval must be re\-obtained. |
 | **BR\-008** | `record_log_sheet_maintenance_decision` | Reason code \+ comment mandatory on Maintenance rejection. |
 | **BR\-010** | `record_log_sheet_operations_decision` | Server\-side re\-check that all three gates are clear before allowing Operations approval — cannot be bypassed by manipulating client\-side button visibility. |
 | **BR\-011** | `record_log_sheet_billing_outcome` | Closing billing requires a SAP document reference, or a Manager/System Manager override reason; holding requires a reason. |
@@ -429,6 +456,7 @@ This build is **live configuration on the production site**, not a package that 
 1. `bench new-app log_sheet_automation`, then either `bench export-fixtures` the DocTypes/Roles/Workspace/Print Format as fixtures, or recreate them as first\-class `.json` DocType definitions in the app (cleaner long\-term — fixtures are fragile across versions).
 2. Move each Server Script's body into a proper controller (`hooks.py` `doc_events` for the Before Save validation; `@frappe.whitelist()` Python functions in an `api.py` for the nine methods) — this also removes every constraint in §9, since normal app code runs outside the RestrictedPython sandbox.
 3. Move the Client Script into the DocType's client\-side `.js` bundle.
-4. Swap `Log Sheet Automation Settings.ocr_provider_mode` / `sap_provider_mode` from Mock to their real integrations (Azure Document Intelligence; live SAP endpoint) behind the same settings surface — no workflow logic changes required, by design.
-5. Wire actual email/SMS delivery of the client approval link (currently the link is generated and returned in the API response only).
-6. Add automated tests for the state\-machine transitions and the three BR\-comparison edge cases in §5.1/§9 before this carries real invoices.
+4. Swap `Log Sheet Automation Settings.ocr_provider_mode` / `sap_provider_mode` from Mock to their real integrations behind the same settings surface — no workflow logic changes required, by design. **Done**: OCR now calls Google Vision API (not Azure — Azure was evaluated, then dropped once the real paper log sheets showed a multi\-day table shape that would need a different custom\-model schema entirely); SAP now calls a live, configurable REST endpoint.
+5. Wire actual email/SMS delivery of the client approval link. **Done** — Email via the site's Email Account, SMS via Twilio, both dispatched from `notifications.py`.
+6. Add automated tests for the state\-machine transitions, the BR\-007 content\-hash comparison, and the Daily Log aggregate computation before this carries real invoices.
+7. **Done (2026\-10):** restructured Equipment Log Sheet from one\-record\-per\-day to one\-record\-per\-Weekly/Monthly\-sheet with a Daily Log child table, after reviewing the real Sanghvi Movers paper templates — see the schema note at the top of §4 and `equipment_log_sheet.py`'s module docstring.

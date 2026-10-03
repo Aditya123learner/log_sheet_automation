@@ -51,20 +51,20 @@
    "idx": 5
   },
   {
-   "fieldname": "log_date",
-   "label": "Log Date",
-   "fieldtype": "Date",
+   "fieldname": "sheet_template",
+   "label": "Sheet Template",
+   "fieldtype": "Select",
+   "options": "Weekly\nMonthly",
    "reqd": 1,
    "in_list_view": 1,
+   "description": "Which real-world paper log sheet this record represents — Sanghvi Movers uses two physical templates (Weekly Crane Log Sheet and Monthly Crane Logsheet), with slightly different printed fields; the form below shows/hides accordingly.",
    "idx": 6
   },
   {
-   "fieldname": "shift",
-   "label": "Shift",
-   "fieldtype": "Select",
-   "options": "Day\nNight\nGeneral",
-   "reqd": 1,
-   "in_list_view": 1,
+   "fieldname": "log_sheet_no",
+   "label": "Log Sheet No.",
+   "fieldtype": "Data",
+   "description": "Printed log sheet number, where the template prints one (the Weekly template numbers each sheet, e.g. 7368). Leave blank if the template doesn't print one.",
    "idx": 7
   },
   {
@@ -73,13 +73,42 @@
    "idx": 8
   },
   {
+   "fieldname": "month",
+   "label": "Month",
+   "fieldtype": "Data",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "As printed on the sheet, e.g. \"September 2026\".",
+   "idx": 9
+  },
+  {
+   "fieldname": "period_start_date",
+   "label": "Period Start Date",
+   "fieldtype": "Date",
+   "reqd": 1,
+   "in_list_view": 1,
+   "idx": 10
+  },
+  {
+   "fieldname": "period_end_date",
+   "label": "Period End Date",
+   "fieldtype": "Date",
+   "reqd": 1,
+   "idx": 11
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_12",
+   "idx": 12
+  },
+  {
    "fieldname": "operating_site",
    "label": "Operating Site",
    "fieldtype": "Link",
    "options": "Operating Site",
    "reqd": 1,
    "in_list_view": 1,
-   "idx": 9
+   "idx": 13
   },
   {
    "fieldname": "customer",
@@ -88,7 +117,7 @@
    "options": "Customer",
    "read_only": 1,
    "description": "Fetched from Operating Site.",
-   "idx": 10
+   "idx": 14
   },
   {
    "fieldname": "equipment",
@@ -97,38 +126,38 @@
    "options": "Asset",
    "reqd": 1,
    "in_list_view": 1,
-   "idx": 11
+   "idx": 15
   },
   {
    "fieldname": "operator_user",
    "label": "Operator",
    "fieldtype": "Link",
    "options": "User",
-   "idx": 12
+   "idx": 16
   },
   {
    "fieldtype": "Section Break",
    "label": "Source Document / OCR",
-   "fieldname": "source_document_/_ocr_13",
-   "idx": 13
+   "fieldname": "source_document_/_ocr_17",
+   "idx": 17
   },
   {
    "fieldname": "source_document",
    "label": "Source Document (scan/photo)",
    "fieldtype": "Attach",
-   "idx": 14
+   "idx": 18
   },
   {
    "fieldname": "ocr_template",
    "label": "OCR Template",
    "fieldtype": "Link",
    "options": "Log Sheet OCR Template",
-   "idx": 15
+   "idx": 19
   },
   {
    "fieldtype": "Column Break",
-   "fieldname": "column_break_16",
-   "idx": 16
+   "fieldname": "column_break_20",
+   "idx": 20
   },
   {
    "fieldname": "ocr_status",
@@ -137,155 +166,170 @@
    "options": "Not Run\nQueued\nCompleted\nFailed",
    "read_only": 1,
    "default": "Not Run",
-   "idx": 17
+   "idx": 21
   },
   {
    "fieldname": "ocr_provider_result_id",
    "label": "OCR Provider Result ID",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 18
+   "idx": 22
   },
   {
    "fieldname": "ocr_review_complete",
    "label": "OCR Review Complete",
    "fieldtype": "Check",
-   "idx": 19
+   "idx": 23
   },
   {
    "fieldtype": "Section Break",
-   "label": "Utilization",
-   "fieldname": "utilization_20",
-   "idx": 20
+   "label": "Daily Log",
+   "fieldname": "daily_log_24",
+   "description": "One row per day/shift on the physical sheet — this is what OCR fills, and what the Utilization totals below are computed from.",
+   "idx": 24
   },
   {
-   "fieldname": "start_time",
-   "label": "Start Time",
-   "fieldtype": "Time",
-   "idx": 21
+   "fieldname": "daily_rows",
+   "label": "Daily Log Rows",
+   "fieldtype": "Table",
+   "options": "Equipment Log Sheet Day",
+   "idx": 25
   },
   {
-   "fieldname": "end_time",
-   "label": "End Time",
-   "fieldtype": "Time",
-   "idx": 22
+   "fieldtype": "Section Break",
+   "label": "Utilization (computed from Daily Log)",
+   "fieldname": "utilization_26",
+   "idx": 26
   },
   {
    "fieldname": "working_hours",
    "label": "Working Hours",
    "fieldtype": "Float",
    "precision": "2",
-   "idx": 23
+   "read_only": 1,
+   "description": "Computed: sum of Total Hours across every Daily Log row. Recalculated automatically on save — edit the Daily Log rows, not this field.",
+   "idx": 27
   },
   {
    "fieldname": "idle_hours",
    "label": "Idle Hours",
    "fieldtype": "Float",
    "precision": "2",
-   "idx": 24
+   "read_only": 1,
+   "default": "0",
+   "description": "Reserved for a future template. Neither of the real Sanghvi Movers log sheet templates in use tracks idle time as a distinct value, so this always stays 0.",
+   "idx": 28
   },
   {
    "fieldtype": "Column Break",
-   "fieldname": "column_break_25",
-   "idx": 25
+   "fieldname": "column_break_29",
+   "idx": 29
   },
   {
    "fieldname": "standby_hours",
    "label": "Standby Hours",
    "fieldtype": "Float",
    "precision": "2",
-   "idx": 26
+   "read_only": 1,
+   "default": "0",
+   "description": "Reserved for a future template. Neither of the real Sanghvi Movers log sheet templates in use tracks standby time as a distinct value, so this always stays 0.",
+   "idx": 30
   },
   {
    "fieldname": "breakdown_hours",
    "label": "Breakdown Hours",
    "fieldtype": "Float",
    "precision": "2",
-   "idx": 27
+   "read_only": 1,
+   "description": "Computed: sum of Breakdown Hours across every Daily Log row (only the Weekly template prints this column; always 0 for Monthly sheets).",
+   "idx": 31
   },
   {
    "fieldname": "overtime_hours",
    "label": "Overtime Hours",
    "fieldtype": "Float",
    "precision": "2",
-   "idx": 28
+   "read_only": 1,
+   "description": "Computed: sum of Overtime Hours across every Daily Log row.",
+   "idx": 32
   },
   {
    "fieldname": "operator_remarks",
    "label": "Operator Remarks",
    "fieldtype": "Small Text",
-   "idx": 29
+   "idx": 33
   },
   {
    "fieldtype": "Section Break",
-   "label": "Breakdown",
-   "fieldname": "breakdown_30",
-   "idx": 30
+   "label": "Breakdown Incident Detail",
+   "fieldname": "breakdown_34",
+   "description": "Optional, more detailed incident-level breakdown log (separate from the per-day Breakdown Hours total above) — use this if a breakdown needs its own reason code, component and evidence attachment.",
+   "idx": 34
   },
   {
    "fieldname": "breakdown_table",
    "label": "Breakdown Intervals",
    "fieldtype": "Table",
    "options": "Equipment Log Breakdown",
-   "idx": 31
+   "idx": 35
   },
   {
    "fieldtype": "Section Break",
    "label": "Commercial Mapping",
-   "fieldname": "commercial_mapping_32",
-   "idx": 32
+   "fieldname": "commercial_mapping_36",
+   "idx": 36
   },
   {
    "fieldname": "sap_sales_order",
    "label": "SAP Sales Order",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 33
+   "idx": 37
   },
   {
    "fieldname": "sap_sales_order_item",
    "label": "SAP Sales Order Item",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 34
+   "idx": 38
   },
   {
    "fieldtype": "Column Break",
-   "fieldname": "column_break_35",
-   "idx": 35
+   "fieldname": "column_break_39",
+   "idx": 39
   },
   {
    "fieldname": "work_order_reference",
    "label": "Work Order Reference",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 36
+   "idx": 40
   },
   {
    "fieldname": "uom",
    "label": "UOM",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 37
+   "idx": 41
   },
   {
    "fieldname": "rate_key",
    "label": "Rate Key",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 38
+   "idx": 42
   },
   {
    "fieldtype": "Section Break",
    "label": "Client Approval",
-   "fieldname": "client_approval_39",
-   "idx": 39
+   "fieldname": "client_approval_43",
+   "idx": 43
   },
   {
    "fieldname": "client_recipient",
    "label": "Client Recipient (email/phone label)",
    "fieldtype": "Data",
-   "idx": 40
+   "idx": 44
   },
   {
    "fieldname": "client_approval_status",
@@ -294,19 +338,19 @@
    "options": "Not Requested\nPending\nApproved\nRejected\nExpired",
    "read_only": 1,
    "default": "Not Requested",
-   "idx": 41
+   "idx": 45
   },
   {
    "fieldname": "client_decision_on",
    "label": "Client Decision On",
    "fieldtype": "Datetime",
    "read_only": 1,
-   "idx": 42
+   "idx": 46
   },
   {
    "fieldtype": "Column Break",
-   "fieldname": "column_break_43",
-   "idx": 43
+   "fieldname": "column_break_47",
+   "idx": 47
   },
   {
    "fieldname": "client_token_hash",
@@ -314,14 +358,14 @@
    "fieldtype": "Data",
    "read_only": 1,
    "hidden": 1,
-   "idx": 44
+   "idx": 48
   },
   {
    "fieldname": "client_token_expiry",
    "label": "Client Token Expiry",
    "fieldtype": "Datetime",
    "read_only": 1,
-   "idx": 45
+   "idx": 49
   },
   {
    "fieldname": "client_snapshot_hash",
@@ -329,19 +373,28 @@
    "fieldtype": "Data",
    "read_only": 1,
    "hidden": 1,
-   "idx": 46
+   "idx": 50
+  },
+  {
+   "fieldname": "approved_content_hash",
+   "label": "Approved Content Hash",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "hidden": 1,
+   "description": "Internal — a hash of the header identity fields and every Daily Log row, taken at the moment the client approved. Used by BR-007 to detect any edit after approval, including edits inside the Daily Log child table.",
+   "idx": 51
   },
   {
    "fieldname": "client_comment",
    "label": "Client Comment",
    "fieldtype": "Small Text",
-   "idx": 47
+   "idx": 52
   },
   {
    "fieldtype": "Section Break",
    "label": "Parallel Validation",
-   "fieldname": "parallel_validation_48",
-   "idx": 48
+   "fieldname": "parallel_validation_53",
+   "idx": 53
   },
   {
    "fieldname": "maintenance_status",
@@ -350,25 +403,25 @@
    "options": "Not Started\nPending\nApproved\nRejected",
    "read_only": 1,
    "default": "Not Started",
-   "idx": 49
+   "idx": 54
   },
   {
    "fieldname": "maintenance_reason_code",
    "label": "Maintenance Reason Code",
    "fieldtype": "Select",
    "options": "\nMechanical\nElectrical\nHydraulic\nOperator\nDocumentation\nOther",
-   "idx": 50
+   "idx": 55
   },
   {
    "fieldname": "maintenance_comment",
    "label": "Maintenance Comment",
    "fieldtype": "Small Text",
-   "idx": 51
+   "idx": 56
   },
   {
    "fieldtype": "Column Break",
-   "fieldname": "column_break_52",
-   "idx": 52
+   "fieldname": "column_break_57",
+   "idx": 57
   },
   {
    "fieldname": "sap_validation_status",
@@ -377,19 +430,19 @@
    "options": "Not Started\nPending\nPassed\nException\nFailed",
    "read_only": 1,
    "default": "Not Started",
-   "idx": 53
+   "idx": 58
   },
   {
    "fieldname": "sap_current_run_id",
    "label": "SAP Current Run ID",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 54
+   "idx": 59
   },
   {
    "fieldtype": "Column Break",
-   "fieldname": "column_break_55",
-   "idx": 55
+   "fieldname": "column_break_60",
+   "idx": 60
   },
   {
    "fieldname": "operations_status",
@@ -398,45 +451,45 @@
    "options": "Not Started\nPending\nApproved\nReturned",
    "read_only": 1,
    "default": "Not Started",
-   "idx": 56
+   "idx": 61
   },
   {
    "fieldname": "operations_comment",
    "label": "Operations Comment",
    "fieldtype": "Small Text",
-   "idx": 57
+   "idx": 62
   },
   {
    "fieldname": "validation_table",
    "label": "Validation Results",
    "fieldtype": "Table",
    "options": "Equipment Log Validation",
-   "idx": 58
+   "idx": 63
   },
   {
    "fieldtype": "Section Break",
    "label": "Calculation",
-   "fieldname": "calculation_59",
-   "idx": 59
+   "fieldname": "calculation_64",
+   "idx": 64
   },
   {
    "fieldname": "billing_rule",
    "label": "Billing Rule",
    "fieldtype": "Link",
    "options": "Log Sheet Billing Rule",
-   "idx": 60
+   "idx": 65
   },
   {
    "fieldname": "billing_rule_version",
    "label": "Billing Rule Version",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 61
+   "idx": 66
   },
   {
    "fieldtype": "Column Break",
-   "fieldname": "column_break_62",
-   "idx": 62
+   "fieldname": "column_break_67",
+   "idx": 67
   },
   {
    "fieldname": "billable_hours",
@@ -444,7 +497,7 @@
    "fieldtype": "Float",
    "read_only": 1,
    "precision": "2",
-   "idx": 63
+   "idx": 68
   },
   {
    "fieldname": "calculation_trace",
@@ -452,13 +505,13 @@
    "fieldtype": "Code",
    "options": "JSON",
    "read_only": 1,
-   "idx": 64
+   "idx": 69
   },
   {
    "fieldtype": "Section Break",
    "label": "Billing",
-   "fieldname": "billing_65",
-   "idx": 65
+   "fieldname": "billing_70",
+   "idx": 70
   },
   {
    "fieldname": "billing_status",
@@ -467,37 +520,112 @@
    "options": "Not Ready\nReady\nHeld\nClosed",
    "read_only": 1,
    "default": "Not Ready",
-   "idx": 66
+   "idx": 71
   },
   {
    "fieldname": "billing_hold_reason",
    "label": "Billing Hold Reason",
    "fieldtype": "Small Text",
-   "idx": 67
+   "idx": 72
   },
   {
    "fieldtype": "Column Break",
-   "fieldname": "column_break_68",
-   "idx": 68
+   "fieldname": "column_break_73",
+   "idx": 73
   },
   {
    "fieldname": "sap_document_reference",
    "label": "Manual SAP Document Reference",
    "fieldtype": "Data",
-   "idx": 69
+   "idx": 74
   },
   {
    "fieldname": "closed_on",
    "label": "Closed On",
    "fieldtype": "Datetime",
    "read_only": 1,
-   "idx": 70
+   "idx": 75
+  },
+  {
+   "fieldtype": "Section Break",
+   "label": "Sheet Sign-off (as printed)",
+   "fieldname": "sheet_signoff_76",
+   "description": "Fields captured straight off the physical sheet's footer/signature blocks, for record-keeping — they don't drive any workflow logic.",
+   "idx": 76
+  },
+  {
+   "fieldname": "hour_meter_opening",
+   "label": "Hour Meter Reading — Opening",
+   "fieldtype": "Float",
+   "precision": "2",
+   "depends_on": "eval:doc.sheet_template=='Weekly'",
+   "description": "Only printed on the Weekly template.",
+   "idx": 77
+  },
+  {
+   "fieldname": "hour_meter_closing",
+   "label": "Hour Meter Reading — Closing",
+   "fieldtype": "Float",
+   "precision": "2",
+   "depends_on": "eval:doc.sheet_template=='Weekly'",
+   "description": "Only printed on the Weekly template.",
+   "idx": 78
+  },
+  {
+   "fieldname": "total_working_days_words",
+   "label": "Total Working Days/Shifts (in words)",
+   "fieldtype": "Data",
+   "idx": 79
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_80",
+   "idx": 80
+  },
+  {
+   "fieldname": "total_overtime_hours_words",
+   "label": "Total Overtime Hours (in words)",
+   "fieldtype": "Data",
+   "idx": 81
+  },
+  {
+   "fieldname": "total_breakdown_hours_words",
+   "label": "Total Breakdown Hours (in words)",
+   "fieldtype": "Data",
+   "depends_on": "eval:doc.sheet_template=='Weekly'",
+   "description": "Only printed on the Weekly template.",
+   "idx": 82
+  },
+  {
+   "fieldtype": "Column Break",
+   "fieldname": "column_break_83",
+   "idx": 83
+  },
+  {
+   "fieldname": "site_engineer_name",
+   "label": "Site Engineer / Supervisor",
+   "fieldtype": "Data",
+   "idx": 84
+  },
+  {
+   "fieldname": "mechanical_hod_name",
+   "label": "Mechanical HOD",
+   "fieldtype": "Data",
+   "depends_on": "eval:doc.sheet_template=='Monthly'",
+   "description": "Only printed on the Monthly template.",
+   "idx": 85
+  },
+  {
+   "fieldname": "project_manager_name",
+   "label": "Project Manager",
+   "fieldtype": "Data",
+   "idx": 86
   },
   {
    "fieldtype": "Section Break",
    "label": "Audit",
-   "fieldname": "audit_71",
-   "idx": 71
+   "fieldname": "audit_87",
+   "idx": 87
   },
   {
    "fieldname": "approval_events",
@@ -505,7 +633,7 @@
    "fieldtype": "Table",
    "options": "Equipment Log Approval Event",
    "read_only": 1,
-   "idx": 72
+   "idx": 88
   }
  ],
  "permissions": [

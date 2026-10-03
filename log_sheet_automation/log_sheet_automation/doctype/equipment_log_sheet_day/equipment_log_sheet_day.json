@@ -1,0 +1,102 @@
+{
+ "doctype": "DocType",
+ "name": "Equipment Log Sheet Day",
+ "module": "Log Sheet Automation",
+ "custom": 0,
+ "istable": 1,
+ "issingle": 0,
+ "is_submittable": 0,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "sort_field": "idx",
+ "sort_order": "ASC",
+ "track_changes": 1,
+ "fields": [
+  {
+   "fieldname": "day_label",
+   "label": "Day",
+   "fieldtype": "Data",
+   "description": "Printed day name, e.g. \"Mon\" — only the Weekly template prints this column; leave blank for Monthly.",
+   "in_list_view": 1,
+   "idx": 1
+  },
+  {
+   "fieldname": "log_date",
+   "label": "Date",
+   "fieldtype": "Date",
+   "reqd": 1,
+   "in_list_view": 1,
+   "idx": 2
+  },
+  {
+   "fieldname": "from_time",
+   "label": "Working Time From",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "idx": 3
+  },
+  {
+   "fieldname": "to_time",
+   "label": "Working Time To",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "idx": 4
+  },
+  {
+   "fieldname": "total_hours",
+   "label": "Total Hours",
+   "fieldtype": "Float",
+   "precision": "2",
+   "in_list_view": 1,
+   "idx": 5
+  },
+  {
+   "fieldname": "normal_shift_hours",
+   "label": "Normal Shift Hours",
+   "fieldtype": "Float",
+   "precision": "2",
+   "in_list_view": 1,
+   "idx": 6
+  },
+  {
+   "fieldname": "overtime_hours",
+   "label": "Overtime Hours",
+   "fieldtype": "Float",
+   "precision": "2",
+   "in_list_view": 1,
+   "idx": 7
+  },
+  {
+   "fieldname": "breakdown_hours",
+   "label": "Breakdown Hours",
+   "fieldtype": "Float",
+   "precision": "2",
+   "description": "Only the Weekly template prints a Break Down Hours column; leave 0 for Monthly rows.",
+   "in_list_view": 1,
+   "idx": 8
+  },
+  {
+   "fieldname": "sign_of_crane_operator",
+   "label": "Signed by Crane Operator",
+   "fieldtype": "Check",
+   "description": "Whether the printed sheet shows the crane operator's signature for this day's row.",
+   "idx": 9
+  },
+  {
+   "fieldname": "sign_of_user",
+   "label": "Signed by Client/User",
+   "fieldtype": "Check",
+   "description": "Whether the printed sheet shows the client/user site in-charge's signature for this day's row.",
+   "idx": 10
+  },
+  {
+   "fieldname": "work_description",
+   "label": "Work Description",
+   "fieldtype": "Small Text",
+   "idx": 11
+  }
+ ],
+ "permissions": [],
+ "links": [],
+ "states": []
+}

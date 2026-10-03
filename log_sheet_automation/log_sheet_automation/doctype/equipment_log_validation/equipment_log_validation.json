@@ -64,7 +64,7 @@
    "fieldname": "provider_mode",
    "label": "Provider Mode",
    "fieldtype": "Select",
-   "options": "Mock\nLive\nAzure",
+   "options": "Mock\nLive\nGoogle Vision API",
    "idx": 8
   },
   {

@@ -1,6 +1,30 @@
 # Copyright (c) 2026, Logic Motive Consultant and contributors
 # For license information, please see license.txt
 
+"""SAP validation provider abstraction.
+
+`Log Sheet Automation Settings.sap_provider_mode` is locked to **Live** —
+every SAP Validation run POSTs the log sheet's actual data to `sap_endpoint`
+and expects back a JSON response shaped like
+`{"checks": [{"code", "status", "message"}]}` (status one of
+Passed/Exception/Failed). This is a *generic* REST contract, not any
+specific SAP module's real API — real SAP landscapes expose this kind of
+check through very different mechanisms (an OData service, SAP PI/PO, an
+RFC-fronting middleware, a BTP integration flow...). Treat
+`_call_live_endpoint()` below as the one function you replace with
+whatever your actual SAP integration layer expects; the rest of this
+module (and the rest of the app) only depends on getting back that
+`checks` list, not on how it was obtained. Not live-tested against a real
+SAP endpoint in this environment — no live credentials/endpoint were
+available when this was written, so verify the payload shape below
+against what your actual SAP-facing service expects before relying on it.
+
+The **Mock** path (the five canned checks below, with `mock_sap_scenario`
+forcing an EXPIRED_SO / INSUFFICIENT_QTY exception on demand) is still
+here and still works, but `sap_provider_mode` no longer offers it as a
+choice in Settings — every run goes to the real endpoint now.
+"""
+
 import frappe
 from frappe.utils import flt, now_datetime
 
@@ -52,24 +76,44 @@ def _validate_live(doc, settings):
 def _build_sap_payload(doc):
 	"""The actual log sheet data sent to SAP — not just the order-reference
 	IDs needed to look the sales order up, but the crane log data itself
-	(hours, breakdown lines, billable hours once calculated) so the SAP
-	side has the real record to validate/book against, not a bare
-	reference check. Extend this if your SAP contract needs more."""
+	(hours, daily rows, breakdown lines, billable hours once calculated) so
+	the SAP side has the real record to validate/book against, not a bare
+	reference check. Extend this if your SAP contract needs more.
+
+	Schema note: `log_date` / `shift` / `start_time` / `end_time` were
+	removed from Equipment Log Sheet when it was restructured to one
+	record per Weekly/Monthly sheet with a `daily_rows` child-table row per
+	day (see equipment_log_sheet.py's module docstring) — `period_start_date`
+	/ `period_end_date` and `daily_rows` replace them below."""
 	return {
 		"log_sheet": doc.name,
 		"operating_site": doc.operating_site,
 		"customer": doc.customer,
 		"equipment": doc.equipment,
-		"log_date": str(doc.log_date),
-		"shift": doc.shift,
-		"start_time": str(doc.start_time) if doc.start_time else None,
-		"end_time": str(doc.end_time) if doc.end_time else None,
+		"sheet_template": doc.sheet_template,
+		"month": doc.month,
+		"period_start_date": str(doc.period_start_date) if doc.period_start_date else None,
+		"period_end_date": str(doc.period_end_date) if doc.period_end_date else None,
 		"working_hours": flt(doc.working_hours),
 		"idle_hours": flt(doc.idle_hours),
 		"standby_hours": flt(doc.standby_hours),
 		"breakdown_hours": flt(doc.breakdown_hours),
 		"overtime_hours": flt(doc.overtime_hours),
 		"billable_hours": flt(doc.billable_hours),
+		"daily_rows": [
+			{
+				"log_date": str(row.log_date) if row.log_date else None,
+				"day_label": row.day_label,
+				"from_time": str(row.from_time) if row.from_time else None,
+				"to_time": str(row.to_time) if row.to_time else None,
+				"total_hours": flt(row.total_hours),
+				"normal_shift_hours": flt(row.normal_shift_hours),
+				"overtime_hours": flt(row.overtime_hours),
+				"breakdown_hours": flt(row.breakdown_hours),
+				"work_description": row.work_description,
+			}
+			for row in (doc.daily_rows or [])
+		],
 		"breakdown_lines": [
 			{
 				"reason_code": row.reason_code,

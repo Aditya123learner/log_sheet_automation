@@ -56,7 +56,7 @@ def _send_email(doc, settings, full_url, expiry):
 	try:
 		frappe.sendmail(
 			recipients=[doc.client_recipient],
-			subject=f"Action needed: approve log sheet {doc.name} ({doc.log_date})",
+			subject=f"Action needed: approve log sheet {doc.name} ({doc.period_start_date} to {doc.period_end_date})",
 			message=_email_body(doc, full_url, expiry),
 			sender_name=settings.notification_sender_name or "Log Sheet Automation",
 			now=True,
@@ -73,8 +73,8 @@ def _email_body(doc, full_url, expiry):
 	<table style="border-collapse:collapse">
 		<tr><td style="padding:2px 8px;color:#666">Site</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(doc.operating_site or "")}</b></td></tr>
 		<tr><td style="padding:2px 8px;color:#666">Equipment</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(doc.equipment or "")}</b></td></tr>
-		<tr><td style="padding:2px 8px;color:#666">Date</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(str(doc.log_date))}</b></td></tr>
-		<tr><td style="padding:2px 8px;color:#666">Shift</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(doc.shift or "")}</b></td></tr>
+		<tr><td style="padding:2px 8px;color:#666">Sheet</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(doc.sheet_template or "")} — {frappe.utils.escape_html(doc.month or "")}</b></td></tr>
+		<tr><td style="padding:2px 8px;color:#666">Period</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(str(doc.period_start_date or ""))} to {frappe.utils.escape_html(str(doc.period_end_date or ""))}</b></td></tr>
 	</table>
 	<p style="margin-top:16px">
 		<a href="{full_url}" style="background:#2e7d32;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Review &amp; Approve</a>

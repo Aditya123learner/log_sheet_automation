@@ -18,6 +18,9 @@
 	.lsa-msg-error { background: #fdecea; color: #c62828; }
 	.lsa-msg-success { background: #e8f5e9; color: #2e7d32; }
 	.lsa-loading { text-align: center; color: #888; padding: 2rem 0; }
+	.lsa-daily-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+	.lsa-daily-table th, .lsa-daily-table td { border-bottom: 1px solid #f2f2f2; padding: 4px 6px; text-align: left; }
+	.lsa-daily-table th { color: #666; font-weight: 600; }
 </style>
 
 <div class="lsa-approval-wrap">
@@ -43,16 +46,51 @@
 		root.innerHTML = `<div class="lsa-msg lsa-msg-error">${escapeHtml(message)}</div>`;
 	}
 
+	function renderDailyRowsTable(rows) {
+		if (!rows || !rows.length) {
+			return "";
+		}
+		const dayRows = rows
+			.map(
+				(r) => `
+			<tr>
+				<td>${escapeHtml(r.day_label || "")}</td>
+				<td>${escapeHtml(r.log_date || "")}</td>
+				<td>${escapeHtml(r.from_time || "")}–${escapeHtml(r.to_time || "")}</td>
+				<td>${escapeHtml(r.total_hours)}</td>
+				<td>${escapeHtml(r.normal_shift_hours)}</td>
+				<td>${escapeHtml(r.overtime_hours)}</td>
+				<td>${escapeHtml(r.breakdown_hours)}</td>
+			</tr>`
+			)
+			.join("");
+		return `
+			<table class="lsa-daily-table">
+				<thead>
+					<tr>
+						<th>${"{{ _('Day') }}"}</th>
+						<th>${"{{ _('Date') }}"}</th>
+						<th>${"{{ _('Time') }}"}</th>
+						<th>${"{{ _('Total') }}"}</th>
+						<th>${"{{ _('Normal') }}"}</th>
+						<th>${"{{ _('OT') }}"}</th>
+						<th>${"{{ _('Breakdown') }}"}</th>
+					</tr>
+				</thead>
+				<tbody>${dayRows}</tbody>
+			</table>`;
+	}
+
 	function renderSnapshot(s) {
 		root.innerHTML = `
 			<div class="lsa-row"><span class="k">${"{{ _('Site') }}"}</span><span class="v">${escapeHtml(s.site)}</span></div>
 			<div class="lsa-row"><span class="k">${"{{ _('Equipment') }}"}</span><span class="v">${escapeHtml(s.equipment)}</span></div>
-			<div class="lsa-row"><span class="k">${"{{ _('Date') }}"}</span><span class="v">${escapeHtml(s.log_date)}</span></div>
-			<div class="lsa-row"><span class="k">${"{{ _('Shift') }}"}</span><span class="v">${escapeHtml(s.shift)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Sheet') }}"}</span><span class="v">${escapeHtml(s.sheet_template)} — ${escapeHtml(s.month)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Period') }}"}</span><span class="v">${escapeHtml(s.period_start_date)} to ${escapeHtml(s.period_end_date)}</span></div>
 			<div class="lsa-row"><span class="k">${"{{ _('Working Hours') }}"}</span><span class="v">${escapeHtml(s.working_hours)}</span></div>
-			<div class="lsa-row"><span class="k">${"{{ _('Idle Hours') }}"}</span><span class="v">${escapeHtml(s.idle_hours)}</span></div>
-			<div class="lsa-row"><span class="k">${"{{ _('Standby Hours') }}"}</span><span class="v">${escapeHtml(s.standby_hours)}</span></div>
+			<div class="lsa-row"><span class="k">${"{{ _('Overtime Hours') }}"}</span><span class="v">${escapeHtml(s.overtime_hours)}</span></div>
 			<div class="lsa-row"><span class="k">${"{{ _('Breakdown Hours') }}"}</span><span class="v">${escapeHtml(s.breakdown_hours)}</span></div>
+			${renderDailyRowsTable(s.daily_rows)}
 			<textarea id="lsa-comment" class="lsa-comment" rows="2" placeholder="${"{{ _('Comment (required to reject)') }}"}"></textarea>
 			<div class="lsa-actions">
 				<button class="lsa-btn lsa-btn-approve" id="lsa-approve">${"{{ _('Approve') }}"}</button>
