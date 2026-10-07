@@ -214,13 +214,59 @@ frappe.ui.form.on("Equipment Log Sheet", {
 			}, __("Operations"));
 		}
 
-		// -- Billing User: Close / Hold -------------------------------------------
+		// -- Billing User: Post to SAP / Close manually / Hold ----------------------
 		if (
 			!frm.is_new() &&
 			has_role("Log Sheet Billing User", "Log Sheet Manager", "System Manager") &&
 			frm.doc.workflow_state === "Billing Ready"
 		) {
-			frm.add_custom_button(__("Close Billing"), () => {
+			// The normal last step: send the approved sheet and its billable hours
+			// to SAP; the SAP document number that comes back closes the sheet.
+			if (frm.doc.billing_status !== "Held") {
+				const post_button = frm.add_custom_button(
+					frm.doc.sap_posting_status === "Failed" ? __("Retry Post to SAP") : __("Post to SAP"),
+					() => {
+						frappe.confirm(
+							__(
+								"Post log sheet {0} to SAP?<br><br>Billable hours: <b>{1}</b><br>Sales order: <b>{2}</b> / item <b>{3}</b><br><br>This sends the approved sheet to SAP and closes it. It cannot be posted twice.",
+								[
+									frm.doc.name,
+									frm.doc.billable_hours,
+									frappe.utils.escape_html(frm.doc.sap_sales_order || "-"),
+									frappe.utils.escape_html(frm.doc.sap_sales_order_item || "-"),
+								]
+							),
+							() => {
+								frappe.call({
+									method: "log_sheet_automation.api.post_log_sheet_to_sap",
+									args: { name: frm.doc.name },
+									freeze: true,
+									freeze_message: __("Posting to SAP..."),
+									callback: (r) => {
+										const result = r.message || {};
+										frappe.msgprint({
+											title: result.ok ? __("Posted to SAP") : __("SAP posting failed"),
+											indicator: result.ok ? "green" : "red",
+											message: result.ok
+												? __("SAP document <b>{0}</b> was created and the log sheet is closed.", [
+														frappe.utils.escape_html(result.sap_document_reference || ""),
+												  ])
+												: __("{0}<br><br>The log sheet is still Billing Ready. Fix the cause and use Retry Post to SAP.", [
+														frappe.utils.escape_html(result.message || ""),
+												  ]),
+										});
+										frm.reload_doc();
+									},
+								});
+							}
+						);
+					}
+				);
+				post_button.removeClass("btn-default").addClass("btn-primary");
+			}
+
+			// Fallback when SAP cannot be posted to: type the SAP reference by hand.
+			frm.add_custom_button(__("Close Billing Manually"), () => {
 				const is_manager = has_role("Log Sheet Manager", "System Manager");
 				const fields = [
 					{ fieldname: "sap_document_reference", fieldtype: "Data", label: __("SAP Document Reference") },

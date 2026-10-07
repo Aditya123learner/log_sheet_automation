@@ -927,3 +927,87 @@ def record_log_sheet_billing_outcome(name, action, sap_document_reference=None, 
 	doc.flags.ignore_permissions = True
 	doc.save(ignore_permissions=True)
 	return {"ok": True, "workflow_state": doc.workflow_state, "billing_status": doc.billing_status}
+
+
+# ---------------------------------------------------------------------------
+# 10. Post the approved log sheet to SAP
+# ---------------------------------------------------------------------------
+
+@frappe.whitelist()
+def post_log_sheet_to_sap(name):
+	"""The last step: send the approved sheet and its calculated billable
+	hours to SAP, store the SAP document number that comes back and close the
+	sheet. Replaces typing a SAP reference by hand (that path, Close Billing,
+	stays available as a fallback).
+
+	Server-side guards regardless of what the form shows: every gate must be
+	clear and Operations must have approved (so billable hours exist), and a
+	sheet that was already posted is never sent again. If SAP cannot be
+	reached or refuses, the failure is recorded on the sheet and it stays
+	Billing Ready so the posting can be retried."""
+	_require_role("Log Sheet Billing User", "Log Sheet Manager", "System Manager")
+
+	doc = frappe.get_doc("Equipment Log Sheet", name)
+	if doc.sap_posting_status == "Posted" or doc.billing_status == "Closed":
+		frappe.throw(_("This log sheet is already closed (SAP document {0}).").format(doc.sap_document_reference or "-"))
+	if doc.billing_status == "Held":
+		frappe.throw(_("This log sheet is on billing hold: {0}").format(doc.billing_hold_reason or ""))
+	if (
+		doc.workflow_state != "Billing Ready"
+		or doc.client_approval_status != "Approved"
+		or doc.maintenance_status != "Approved"
+		or doc.sap_validation_status != "Passed"
+		or doc.operations_status != "Approved"
+	):
+		frappe.throw(_("Only a Billing Ready log sheet can be posted: client, Maintenance, SAP validation and Operations must all be clear (BR-010)."))
+
+	settings = _get_settings()
+	document_number = message = None
+	run_id = None
+	try:
+		run_id, document_number, message = sap_integration.post_log_sheet(doc, settings)
+	except Exception as e:
+		frappe.log_error(title=f"Log Sheet Automation: SAP posting failed for {name}", message=frappe.get_traceback())
+		frappe.clear_messages()
+		message = str(e)[:500] or "SAP posting failed. See Error Log."
+
+	posted = bool(document_number)
+	doc.sap_posting_run_id = run_id
+	doc.sap_posting_message = message
+	doc.sap_posting_status = "Posted" if posted else "Failed"
+	doc.append(
+		"validation_table",
+		{
+			"validation_type": "SAP Posting",
+			"run_id": run_id,
+			"check_code": "SAP_POST",
+			"status": "Passed" if posted else "Failed",
+			"message": (f"SAP document {document_number}. " if posted else "") + (message or ""),
+			"input_summary": json.dumps({"billable_hours": flt(doc.billable_hours), "sap_sales_order": doc.sap_sales_order}),
+			"source_timestamp": now_datetime(),
+			"provider_mode": settings.sap_provider_mode,
+			"is_current": 1,
+		},
+	)
+
+	if posted:
+		doc.sap_document_reference = document_number
+		doc.sap_posted_on = now_datetime()
+		doc.billing_status = "Closed"
+		doc.closed_on = now_datetime()
+		doc.workflow_state = "Closed"
+	_log_event(
+		doc, "Billing Outcome", "Billing Ready", "Closed" if posted else "Billing Ready",
+		"Posted to SAP" if posted else "SAP Posting Failed", "Log Sheet Billing User",
+		comment=(f"SAP document {document_number}: " if posted else "") + (message or ""),
+	)
+
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	return {
+		"ok": posted,
+		"sap_document_reference": doc.sap_document_reference,
+		"message": message,
+		"workflow_state": doc.workflow_state,
+		"billing_status": doc.billing_status,
+	}

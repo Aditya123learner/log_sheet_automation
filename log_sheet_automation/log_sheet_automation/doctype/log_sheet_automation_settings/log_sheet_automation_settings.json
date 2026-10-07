@@ -150,12 +150,21 @@
   },
   {
    "fieldname": "sap_endpoint",
-   "label": "SAP Endpoint (Live)",
+   "label": "SAP Validation Endpoint",
    "fieldtype": "Data",
    "depends_on": "eval:doc.sap_provider_mode=='Live'",
    "idx": 16,
    "reqd": 0,
-   "hidden": 0
+   "hidden": 0,
+   "description": "Address the log sheet is sent to for the read-only SAP checks (Run SAP Validation)."
+  },
+  {
+   "fieldname": "sap_post_endpoint",
+   "label": "SAP Posting Endpoint",
+   "fieldtype": "Data",
+   "depends_on": "eval:doc.sap_provider_mode=='Live'",
+   "description": "Address the approved log sheet and its calculated billable hours are sent to by Post to SAP. It must answer with the SAP document number it created. Uses the same Auth Type and Credential as validation.",
+   "idx": 17
   },
   {
    "fieldname": "sap_auth_type",
@@ -163,7 +172,7 @@
    "fieldtype": "Select",
    "options": "\nAPI Key\nOAuth",
    "depends_on": "eval:doc.sap_provider_mode=='Live'",
-   "idx": 17,
+   "idx": 18,
    "reqd": 0,
    "hidden": 0
   },
@@ -172,14 +181,14 @@
    "label": "SAP Credential",
    "fieldtype": "Password",
    "depends_on": "eval:doc.sap_provider_mode=='Live'",
-   "idx": 18,
+   "idx": 19,
    "reqd": 0,
    "hidden": 0
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "sap_live_cb",
-   "idx": 19,
+   "idx": 20,
    "label": "",
    "reqd": 0,
    "hidden": 0
@@ -192,7 +201,7 @@
    "default": "Generic JSON (checks[])",
    "depends_on": "eval:doc.sap_provider_mode=='Live'",
    "description": "Generic JSON expects {\"checks\": [{\"code\", \"status\": \"Passed|Exception\", \"message\"}, ...]}. Adjust log_sheet_automation/integrations/sap.py if your endpoint returns a different shape.",
-   "idx": 20,
+   "idx": 21,
    "reqd": 0,
    "hidden": 0
   },
@@ -200,7 +209,7 @@
    "fieldtype": "Section Break",
    "label": "Client Approval Link",
    "fieldname": "client_approval_link_16",
-   "idx": 21,
+   "idx": 22,
    "reqd": 0,
    "hidden": 0
   },
@@ -210,7 +219,7 @@
    "fieldtype": "Int",
    "reqd": 1,
    "default": "48",
-   "idx": 22,
+   "idx": 23,
    "hidden": 0
   },
   {
@@ -219,13 +228,13 @@
    "fieldtype": "Check",
    "default": "0",
    "description": "Normally a second log sheet for the same site, equipment, template and period is refused (business rule BR-004). Tick this ONLY on a demo or test site where the same sample scans are read again and again. Leave it off for real use.",
-   "idx": 23
+   "idx": 24
   },
   {
    "fieldtype": "Section Break",
    "label": "Client Notification Delivery",
    "fieldname": "notification_delivery_sb",
-   "idx": 24,
+   "idx": 25,
    "reqd": 0,
    "hidden": 0
   },
@@ -237,7 +246,7 @@
    "default": "Email",
    "reqd": 1,
    "description": "How to deliver the client approval link once generated. 'None' just returns it in the API response (demo behaviour).",
-   "idx": 25,
+   "idx": 26,
    "hidden": 0
   },
   {
@@ -246,14 +255,14 @@
    "fieldtype": "Data",
    "default": "Sanghvi Movers Log Sheet",
    "depends_on": "eval:['Email','Email and SMS'].includes(doc.notification_channel)",
-   "idx": 26,
+   "idx": 27,
    "reqd": 0,
    "hidden": 0
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "notification_cb",
-   "idx": 27,
+   "idx": 28,
    "label": "",
    "reqd": 0,
    "hidden": 0
@@ -264,7 +273,7 @@
    "fieldtype": "Select",
    "options": "\nTwilio",
    "depends_on": "eval:['SMS','Email and SMS'].includes(doc.notification_channel)",
-   "idx": 28,
+   "idx": 29,
    "reqd": 0,
    "hidden": 0
   },
@@ -273,7 +282,7 @@
    "label": "Twilio Account SID",
    "fieldtype": "Data",
    "depends_on": "eval:doc.sms_gateway_provider=='Twilio'",
-   "idx": 29,
+   "idx": 30,
    "reqd": 0,
    "hidden": 0
   },
@@ -282,7 +291,7 @@
    "label": "Twilio Auth Token",
    "fieldtype": "Password",
    "depends_on": "eval:doc.sms_gateway_provider=='Twilio'",
-   "idx": 30,
+   "idx": 31,
    "reqd": 0,
    "hidden": 0
   },
@@ -291,7 +300,7 @@
    "label": "Twilio From Number",
    "fieldtype": "Data",
    "depends_on": "eval:doc.sms_gateway_provider=='Twilio'",
-   "idx": 31,
+   "idx": 32,
    "reqd": 0,
    "hidden": 0
   }

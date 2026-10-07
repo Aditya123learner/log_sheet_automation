@@ -253,7 +253,7 @@ This is the exact sequence to show a client end\-to\-end, using the roles above.
 
 **Step 8 — Operations sign\-off.** Once both Maintenance and SAP have passed, the sheet reaches **Operations Review**. Click **Approve (Operations)** — this is also the moment the system calculates **Billable Hours** from the Billing Rule and moves the sheet to **Billing Ready**. (Or **Return (Operations)** with a comment to send it back for rework.)
 
-**Step 9 — Close billing.** As the Billing User, click **Close Billing**, enter the SAP document/invoice reference, and confirm. Workflow State → **Closed**, Billing Status → **Closed**. (Or **Hold Billing** with a reason if something still needs resolving first — the sheet stays open.)
+**Step 9 — Post to SAP.** As the Billing User, click **Post to SAP** and confirm. The approved sheet and its calculated billable hours are sent to SAP; SAP answers with a document number, which is stored on the sheet as SAP Document Reference, and the sheet moves to **Closed**. If SAP cannot be reached or refuses, the sheet stays Billing Ready, the reason is shown under SAP Posting Message, and the button becomes **Retry Post to SAP**. **Close Billing Manually** (type the SAP reference by hand) and **Hold Billing** remain available under the Billing menu.
 
 **Step 10 — Show the paper trail.** Open the **Approval Event History** table to walk through every decision in order, and use **Print → Log Sheet Approval Summary** to show the client\-ready one\-page summary (identity, utilization, every decision, the latest SAP checks, and the billing calculation — no internal security fields).
 
