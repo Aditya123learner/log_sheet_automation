@@ -56,30 +56,63 @@ def _send_email(doc, settings, full_url, expiry):
 	try:
 		frappe.sendmail(
 			recipients=[doc.client_recipient],
+			sender=_sender(settings),
 			subject=f"Action needed: approve log sheet {doc.name} ({doc.period_start_date} to {doc.period_end_date})",
 			message=_email_body(doc, full_url, expiry),
-			sender_name=settings.notification_sender_name or "Log Sheet Automation",
+			# Shows the email in the log sheet's own timeline.
+			reference_doctype=doc.doctype,
+			reference_name=doc.name,
 			now=True,
 		)
-		return "Email queued."
+		return f"Approval link emailed to {doc.client_recipient}."
 	except Exception:
 		frappe.log_error(title="Log Sheet Automation: email delivery failed", message=frappe.get_traceback())
-		return "Email delivery failed — see Error Log."
+		return f"Email to {doc.client_recipient} failed — see Error Log. The link itself is valid and can be shared by hand."
+
+
+def _sender(settings):
+	"""'Sender Name <address>' built from Settings' Notification Sender Name
+	and the site's default outgoing Email Account. (frappe.sendmail has no
+	`sender_name` argument — passing one made every approval email fail.)
+	None lets Frappe fall back to its own default sender."""
+	address = frappe.db.get_value("Email Account", {"default_outgoing": 1, "enable_outgoing": 1}, "email_id")
+	name = (settings.notification_sender_name or "").strip()
+	if not address:
+		return None
+	if not name or "@" in name:
+		return address
+	return frappe.utils.formataddr((name, address))
 
 
 def _email_body(doc, full_url, expiry):
+	esc = frappe.utils.escape_html
+	equipment = frappe.db.get_value("Asset", doc.equipment, "asset_name") if doc.equipment else ""
+	approver = frappe.db.get_value("Contact", doc.client_approver, "first_name") if doc.get("client_approver") else ""
+	rows = [
+		("Log sheet", doc.name + (f" (No. {doc.log_sheet_no})" if doc.log_sheet_no else "")),
+		("Site", doc.operating_site),
+		("Equipment", equipment or doc.equipment),
+		("Sheet", f"{doc.sheet_template or ''} — {doc.month or ''}"),
+		("Period", f"{frappe.utils.formatdate(doc.period_start_date)} to {frappe.utils.formatdate(doc.period_end_date)}"),
+		("Days logged", len(doc.daily_rows or [])),
+		("Working hours", f"{frappe.utils.flt(doc.working_hours):g}"),
+		("Overtime hours", f"{frappe.utils.flt(doc.overtime_hours):g}"),
+		("Breakdown hours", f"{frappe.utils.flt(doc.breakdown_hours):g}"),
+	]
+	table = "".join(
+		f'<tr><td style="padding:3px 10px;color:#666">{esc(str(label))}</td>'
+		f'<td style="padding:3px 10px"><b>{esc(str(value or ""))}</b></td></tr>'
+		for label, value in rows
+	)
 	return f"""
-	<p>A crane log sheet is ready for your approval.</p>
-	<table style="border-collapse:collapse">
-		<tr><td style="padding:2px 8px;color:#666">Site</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(doc.operating_site or "")}</b></td></tr>
-		<tr><td style="padding:2px 8px;color:#666">Equipment</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(doc.equipment or "")}</b></td></tr>
-		<tr><td style="padding:2px 8px;color:#666">Sheet</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(doc.sheet_template or "")} — {frappe.utils.escape_html(doc.month or "")}</b></td></tr>
-		<tr><td style="padding:2px 8px;color:#666">Period</td><td style="padding:2px 8px"><b>{frappe.utils.escape_html(str(doc.period_start_date or ""))} to {frappe.utils.escape_html(str(doc.period_end_date or ""))}</b></td></tr>
-	</table>
-	<p style="margin-top:16px">
+	<p>Dear {esc(approver or "Sir / Madam")},</p>
+	<p>A crane log sheet is ready for your review and approval.</p>
+	<table style="border-collapse:collapse">{table}</table>
+	<p style="margin-top:18px">
 		<a href="{full_url}" style="background:#2e7d32;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Review &amp; Approve</a>
 	</p>
-	<p style="font-size:12px;color:#888">This link expires {expiry} and does not require you to log in.</p>
+	<p style="font-size:12px;color:#666">If the button does not work, copy this link into your browser:<br>{esc(full_url)}</p>
+	<p style="font-size:12px;color:#888">The link opens the day-by-day log, needs no login, can be used once, and expires on {frappe.utils.format_datetime(expiry)}.</p>
 	"""
 
 

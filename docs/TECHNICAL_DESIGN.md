@@ -397,7 +397,7 @@ The public approval flow is designed so a client can act on a log sheet with **n
 
 Single Client Script, `dt = Equipment Log Sheet`, `view = Form`. Renders role\- and state\-conditional toolbar buttons via `frm.add_custom_button`, each POSTing to its matching API method (via `frappe.call`) and then `frm.reload_doc()`. Buttons present, gated on `frappe.user_roles` and the current `workflow_state`/gate\-status fields:
 
-`Run OCR` · `Generate Client Approval Link` · `Record Maintenance Decision` · `Run SAP Validation` · `Request SAP Revalidation` · `Approve (Operations)` · `Return (Operations)` · `Close Billing` · `Hold Billing`
+`Run OCR` · `Send for Client Approval` · `Record Maintenance Decision` · `Run SAP Validation` · `Request SAP Revalidation` · `Approve (Operations)` · `Return (Operations)` · `Close Billing` · `Hold Billing`
 
 A `frm.dashboard.add_indicator` call shows the current `workflow_state` as a coloured status pill at the top of the form (green for Closed, etc.).
 

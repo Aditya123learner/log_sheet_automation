@@ -37,6 +37,26 @@ frappe.ui.form.on("Equipment Log Sheet", {
 		});
 	},
 
+	setup(frm) {
+		// Offer only the contacts of this sheet's Customer as Client Approver.
+		frm.set_query("client_approver", () => {
+			if (!frm.doc.customer) return {};
+			return {
+				query: "frappe.contacts.doctype.contact.contact.contact_query",
+				filters: { link_doctype: "Customer", link_name: frm.doc.customer },
+			};
+		});
+	},
+
+	operating_site(frm) {
+		// A new site brings its own default approver.
+		if (!frm.doc.operating_site) return;
+		frappe.db.get_value("Operating Site", frm.doc.operating_site, "default_client_approver").then((r) => {
+			const approver = r.message && r.message.default_client_approver;
+			if (approver) frm.set_value("client_approver", approver);
+		});
+	},
+
 	refresh(frm) {
 		if (frm.doc.workflow_state) {
 			frm.dashboard.add_indicator(
@@ -76,32 +96,39 @@ frappe.ui.form.on("Equipment Log Sheet", {
 			});
 		}
 
-		// -- Operator: Generate Client Approval Link ---------------------------
+		// -- Operator: Send for Client Approval ----------------------------------
+		// Generates the one-time approval link, emails it to the Client Approver
+		// and moves the sheet to Client Approval Pending.
 		if (
 			!frm.is_new() &&
 			has_role("Log Sheet Operator", "Log Sheet Manager", "System Manager") &&
 			!["Closed", "Void", "Client Approval Pending"].includes(frm.doc.workflow_state) &&
 			frm.doc.client_approval_status !== "Approved"
 		) {
-			frm.add_custom_button(__("Generate Client Approval Link"), () => {
-				frappe.call({
-					method: "log_sheet_automation.api.generate_log_sheet_client_link",
-					args: { name: frm.doc.name },
-					freeze: true,
-					callback: (r) => {
-						if (r.message && r.message.ok) {
-							frappe.msgprint({
-								title: __("Client Approval Link"),
-								message: __(
-									"Share this link with the client (expires {0}):<br><code>{1}</code>",
-									[r.message.expiry, r.message.approval_path]
-								),
-								indicator: "green",
-							});
-						}
-						frm.reload_doc();
-					},
-				});
+			frm.add_custom_button(__("Send for Client Approval"), () => {
+				if (frm.is_dirty()) {
+					frappe.msgprint(__("Save the form first, then send it for client approval."));
+					return;
+				}
+				const send = () =>
+					frappe.call({
+						method: "log_sheet_automation.api.generate_log_sheet_client_link",
+						args: { name: frm.doc.name },
+						freeze: true,
+						freeze_message: __("Sending the approval link..."),
+						callback: (r) => {
+							if (r.message && r.message.ok) show_client_link(r.message);
+							frm.reload_doc();
+						},
+					});
+				if (frm.doc.client_recipient) {
+					send();
+				} else {
+					frappe.confirm(
+						__("No Client Approver is selected, so the link cannot be emailed. Create the link anyway and share it yourself?"),
+						send
+					);
+				}
 			});
 		}
 
@@ -288,6 +315,24 @@ function prompt_maintenance_decision(frm) {
 	dialog.show();
 }
 
+
+// After "Send for Client Approval": who it was emailed to (or why not), and
+// the FULL link — clickable and easy to copy — in case it has to be shared
+// by another route. The link is shown this one time only.
+function show_client_link(result) {
+	const url = result.approval_url || frappe.urllib.get_full_url(result.approval_path);
+	const safe_url = frappe.utils.escape_html(url);
+	const emailed = (result.notification || "").toLowerCase().includes("emailed");
+	frappe.msgprint({
+		title: __("Sent for Client Approval"),
+		indicator: emailed ? "green" : "orange",
+		message:
+			`<p><b>${frappe.utils.escape_html(result.notification || "")}</b></p>` +
+			`<p>${__("Approval link (valid once, until {0}):", [frappe.datetime.str_to_user(result.expiry)])}</p>` +
+			`<p><a href="${safe_url}" target="_blank" rel="noopener">${safe_url}</a></p>` +
+			`<p class="text-muted small">${__("Copy it now if you need it: for security the link is not stored and cannot be shown again. Sending again creates a new link and cancels this one.")}</p>`,
+	});
+}
 
 // One line per page of the scan: which Equipment Log Sheet it became, how
 // many Daily Log rows were read, and whether anything needs checking.

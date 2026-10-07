@@ -238,7 +238,7 @@ This is the exact sequence to show a client end\-to\-end, using the roles above.
 
 **Step 3 — Clear AI Review.** Open **Validation Results**: every row OCR was unsure about is marked **Exception** with the reason (for example "read '2h' as 24", "total 15 h does not match From–To (16 h)", "date set to follow the day sequence"). Compare those rows with the scan, correct the Daily Log, then tick **OCR Review Complete** and save.
 
-**Step 4 — Generate the client approval link.** Click **Generate Client Approval Link**. The system creates a one\-time, time\-limited link and moves the sheet to **Client Approval Pending**. In production this link is emailed/texted to the client; in the demo you open it directly in a private browser tab to show it needs no login.
+**Step 4 — Send for client approval.** Pick the **Client Approver** (a Contact of the site's Customer; it defaults from the Operating Site's Default Client Approver) and click **Send for Client Approval**. The approver is emailed a button and the full link; the same full link is shown once on screen in case it has to be shared another way. The system creates a one\-time, time\-limited link and moves the sheet to **Client Approval Pending**. In production this link is emailed/texted to the client; in the demo you open it directly in a private browser tab to show it needs no login.
 
 **Step 5 — Client approves (or rejects) on the public page.** The client sees the key figures (site, equipment, sheet template/month/period, the day\-by\-day table, the hour totals) and two buttons — Approve / Reject. Approving moves the sheet straight into **Parallel Validation** and opens both the Maintenance and SAP gates at once. Rejecting sends it to **Operator Rework** with the client's comment.
 

@@ -398,10 +398,20 @@
    "idx": 52
   },
   {
-   "fieldname": "client_recipient",
-   "label": "Client Recipient (email/phone label)",
-   "fieldtype": "Data",
+   "fieldname": "client_approver",
+   "label": "Client Approver",
+   "fieldtype": "Link",
+   "options": "Contact",
+   "description": "The client's person who approves this sheet — a Contact of the site's Customer. Defaults from the Operating Site. Send for Client Approval emails the approval link to this person.",
    "idx": 53
+  },
+  {
+   "fieldname": "client_recipient",
+   "label": "Client Approver Email",
+   "fieldtype": "Data",
+   "idx": 54,
+   "fetch_from": "client_approver.email_id",
+   "description": "Where the approval link is sent. Filled from the Client Approver's contact; you can also type an email address (or a mobile number for SMS) directly."
   },
   {
    "fieldname": "client_approval_status",
@@ -410,19 +420,19 @@
    "options": "Not Requested\nPending\nApproved\nRejected\nExpired",
    "read_only": 1,
    "default": "Not Requested",
-   "idx": 54
+   "idx": 55
   },
   {
    "fieldname": "client_decision_on",
    "label": "Client Decision On",
    "fieldtype": "Datetime",
    "read_only": 1,
-   "idx": 55
+   "idx": 56
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_47",
-   "idx": 56
+   "idx": 57
   },
   {
    "fieldname": "client_token_hash",
@@ -430,14 +440,14 @@
    "fieldtype": "Data",
    "read_only": 1,
    "hidden": 1,
-   "idx": 57
+   "idx": 58
   },
   {
    "fieldname": "client_token_expiry",
    "label": "Client Token Expiry",
    "fieldtype": "Datetime",
    "read_only": 1,
-   "idx": 58
+   "idx": 59
   },
   {
    "fieldname": "client_snapshot_hash",
@@ -445,7 +455,7 @@
    "fieldtype": "Data",
    "read_only": 1,
    "hidden": 1,
-   "idx": 59
+   "idx": 60
   },
   {
    "fieldname": "approved_content_hash",
@@ -454,19 +464,19 @@
    "read_only": 1,
    "hidden": 1,
    "description": "Internal — a hash of the header identity fields and every Daily Log row, taken at the moment the client approved. Used by BR-007 to detect any edit after approval, including edits inside the Daily Log child table.",
-   "idx": 60
+   "idx": 61
   },
   {
    "fieldname": "client_comment",
    "label": "Client Comment",
    "fieldtype": "Small Text",
-   "idx": 61
+   "idx": 62
   },
   {
    "fieldtype": "Section Break",
    "label": "Parallel Validation",
    "fieldname": "parallel_validation_53",
-   "idx": 62
+   "idx": 63
   },
   {
    "fieldname": "maintenance_status",
@@ -475,25 +485,25 @@
    "options": "Not Started\nPending\nApproved\nRejected",
    "read_only": 1,
    "default": "Not Started",
-   "idx": 63
+   "idx": 64
   },
   {
    "fieldname": "maintenance_reason_code",
    "label": "Maintenance Reason Code",
    "fieldtype": "Select",
    "options": "\nMechanical\nElectrical\nHydraulic\nOperator\nDocumentation\nOther",
-   "idx": 64
+   "idx": 65
   },
   {
    "fieldname": "maintenance_comment",
    "label": "Maintenance Comment",
    "fieldtype": "Small Text",
-   "idx": 65
+   "idx": 66
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_57",
-   "idx": 66
+   "idx": 67
   },
   {
    "fieldname": "sap_validation_status",
@@ -502,19 +512,19 @@
    "options": "Not Started\nPending\nPassed\nException\nFailed",
    "read_only": 1,
    "default": "Not Started",
-   "idx": 67
+   "idx": 68
   },
   {
    "fieldname": "sap_current_run_id",
    "label": "SAP Current Run ID",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 68
+   "idx": 69
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_60",
-   "idx": 69
+   "idx": 70
   },
   {
    "fieldname": "operations_status",
@@ -523,45 +533,45 @@
    "options": "Not Started\nPending\nApproved\nReturned",
    "read_only": 1,
    "default": "Not Started",
-   "idx": 70
+   "idx": 71
   },
   {
    "fieldname": "operations_comment",
    "label": "Operations Comment",
    "fieldtype": "Small Text",
-   "idx": 71
+   "idx": 72
   },
   {
    "fieldname": "validation_table",
    "label": "Validation Results",
    "fieldtype": "Table",
    "options": "Equipment Log Validation",
-   "idx": 72
+   "idx": 73
   },
   {
    "fieldtype": "Section Break",
    "label": "Calculation",
    "fieldname": "calculation_64",
-   "idx": 73
+   "idx": 74
   },
   {
    "fieldname": "billing_rule",
    "label": "Billing Rule",
    "fieldtype": "Link",
    "options": "Log Sheet Billing Rule",
-   "idx": 74
+   "idx": 75
   },
   {
    "fieldname": "billing_rule_version",
    "label": "Billing Rule Version",
    "fieldtype": "Data",
    "read_only": 1,
-   "idx": 75
+   "idx": 76
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_67",
-   "idx": 76
+   "idx": 77
   },
   {
    "fieldname": "billable_hours",
@@ -569,7 +579,7 @@
    "fieldtype": "Float",
    "read_only": 1,
    "precision": "2",
-   "idx": 77
+   "idx": 78
   },
   {
    "fieldname": "calculation_trace",
@@ -577,13 +587,13 @@
    "fieldtype": "Code",
    "options": "JSON",
    "read_only": 1,
-   "idx": 78
+   "idx": 79
   },
   {
    "fieldtype": "Section Break",
    "label": "Billing",
    "fieldname": "billing_70",
-   "idx": 79
+   "idx": 80
   },
   {
    "fieldname": "billing_status",
@@ -592,38 +602,38 @@
    "options": "Not Ready\nReady\nHeld\nClosed",
    "read_only": 1,
    "default": "Not Ready",
-   "idx": 80
+   "idx": 81
   },
   {
    "fieldname": "billing_hold_reason",
    "label": "Billing Hold Reason",
    "fieldtype": "Small Text",
-   "idx": 81
+   "idx": 82
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_73",
-   "idx": 82
+   "idx": 83
   },
   {
    "fieldname": "sap_document_reference",
    "label": "Manual SAP Document Reference",
    "fieldtype": "Data",
-   "idx": 83
+   "idx": 84
   },
   {
    "fieldname": "closed_on",
    "label": "Closed On",
    "fieldtype": "Datetime",
    "read_only": 1,
-   "idx": 84
+   "idx": 85
   },
   {
    "fieldtype": "Section Break",
    "label": "Sheet Sign-off (as printed)",
    "fieldname": "sheet_signoff_76",
    "description": "Fields captured straight off the physical sheet's footer/signature blocks, for record-keeping — they don't drive any workflow logic.",
-   "idx": 85
+   "idx": 86
   },
   {
    "fieldname": "hour_meter_opening",
@@ -632,7 +642,7 @@
    "precision": "2",
    "depends_on": "eval:doc.sheet_template=='Weekly'",
    "description": "Only printed on the Weekly template.",
-   "idx": 86
+   "idx": 87
   },
   {
    "fieldname": "hour_meter_closing",
@@ -641,24 +651,24 @@
    "precision": "2",
    "depends_on": "eval:doc.sheet_template=='Weekly'",
    "description": "Only printed on the Weekly template.",
-   "idx": 87
+   "idx": 88
   },
   {
    "fieldname": "total_working_days_words",
    "label": "Total Working Days/Shifts (in words)",
    "fieldtype": "Data",
-   "idx": 88
+   "idx": 89
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_80",
-   "idx": 89
+   "idx": 90
   },
   {
    "fieldname": "total_overtime_hours_words",
    "label": "Total Overtime Hours (in words)",
    "fieldtype": "Data",
-   "idx": 90
+   "idx": 91
   },
   {
    "fieldname": "total_breakdown_hours_words",
@@ -666,18 +676,18 @@
    "fieldtype": "Data",
    "depends_on": "eval:doc.sheet_template=='Weekly'",
    "description": "Only printed on the Weekly template.",
-   "idx": 91
+   "idx": 92
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_83",
-   "idx": 92
+   "idx": 93
   },
   {
    "fieldname": "site_engineer_name",
    "label": "Site Engineer / Supervisor",
    "fieldtype": "Data",
-   "idx": 93
+   "idx": 94
   },
   {
    "fieldname": "mechanical_hod_name",
@@ -685,19 +695,19 @@
    "fieldtype": "Data",
    "depends_on": "eval:doc.sheet_template=='Monthly'",
    "description": "Only printed on the Monthly template.",
-   "idx": 94
+   "idx": 95
   },
   {
    "fieldname": "project_manager_name",
    "label": "Project Manager",
    "fieldtype": "Data",
-   "idx": 95
+   "idx": 96
   },
   {
    "fieldtype": "Section Break",
    "label": "Audit",
    "fieldname": "audit_87",
-   "idx": 96
+   "idx": 97
   },
   {
    "fieldname": "approval_events",
@@ -705,7 +715,7 @@
    "fieldtype": "Table",
    "options": "Equipment Log Approval Event",
    "read_only": 1,
-   "idx": 97
+   "idx": 98
   }
  ],
  "permissions": [
