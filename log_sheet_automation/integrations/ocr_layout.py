@@ -52,7 +52,7 @@ DEFAULT_WORD_CONFIDENCE = 0.75
 # Handwritten digits that Vision commonly returns as letters. Only applied
 # inside cells that are supposed to hold a number.
 DIGIT_CONFUSIONS = str.maketrans({
-	"h": "4", "H": "4", "u": "4", "U": "4", "y": "4",
+	"h": "4", "H": "4", "u": "4", "U": "4", "y": "4", "A": "4",
 	"l": "1", "I": "1", "|": "1", "!": "1", "i": "1",
 	"O": "0", "o": "0", "D": "0", "Q": "0",
 	"S": "5", "s": "5",
@@ -61,6 +61,14 @@ DIGIT_CONFUSIONS = str.maketrans({
 	"g": "9", "q": "9",
 	"B": "8",
 })
+
+# Vision sometimes returns Latin handwriting as look-alike Cyrillic/Greek
+# letters ("ске" for "cke", "АР" for "AP"). Map them back so the text is
+# searchable and matches masters.
+LOOKALIKES = str.maketrans(
+	"АВЕКМНОРСТХУаеосрхукмтнвΑΒΕΚΜΝΟΡΤΧ",
+	"ABEKMHOPCTXYaeocpxykmthbABEKMNOPTX",
+)
 
 EMPTY_MARKS = set("-–—_.~=·'`,:;/\\|")
 
@@ -128,7 +136,7 @@ def words_from_raw(raw):
 		ys = [p[1] for p in points]
 		x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
 		words.append({
-			"text": item["text"],
+			"text": item["text"].translate(LOOKALIKES),
 			"x0": x0, "x1": x1, "y0": y0, "y1": y1,
 			"cx": (x0 + x1) / 2.0, "cy": (y0 + y1) / 2.0,
 			"w": max(x1 - x0, 1.0), "h": max(y1 - y0, 1.0),
@@ -161,6 +169,12 @@ def _skew_angle(raw):
 
 def _norm(text):
 	return re.sub(r"[^a-z0-9]", "", (text or "").lower())
+
+
+def _is_foreign_script(text):
+	"""True for a word in a script these sheets are never written in (Vision
+	reads signature scribbles as Arabic, Devanagari, ...)."""
+	return any(ord(ch) > 0x024F and ch.isalpha() for ch in text or "")
 
 
 def _similar(a, b):
@@ -434,6 +448,10 @@ def parse_hours(text):
 		return 0.0, None
 	match = re.fullmatch(r"(\d{1,2}(?:\.\d{1,2})?)\.?", t)
 	note = None
+	doubled = re.fullmatch(r"(\d{1,2})\1", t)
+	if doubled and not match:
+		# "2424": two neighbouring cells (Total 24, Normal 24) read as one word.
+		return float(doubled.group(1)), f"read '{t}' as {doubled.group(1)}"
 	if not match:
 		mapped = t.translate(DIGIT_CONFUSIONS)
 		match = re.search(r"(?<![\d.])\d{1,2}(?:\.\d{1,2})?(?![\d.])", mapped)
@@ -450,16 +468,23 @@ def parse_hours(text):
 
 def parse_time(text):
 	"""-> 'HH:MM:SS' or None. Accepts 8.00AM, 9:00 am, 11.00PM, 800AM, 14:30."""
+	return parse_time_ex(text)[0]
+
+
+def parse_time_ex(text):
+	"""-> ('HH:MM:SS' or None, note or None). The note says what had to be
+	assumed, so the row can be flagged for review."""
 	t = (text or "").upper().strip()
 	if not t:
-		return None
+		return None, None
 	meridiem = re.search(r"([AP])\s*\.?\s*[MNH]", t)
 	digits_part = t[: meridiem.start()] if meridiem else t
 	trailing = t[meridiem.end():] if meridiem else ""
 	digits_part = digits_part.replace("O", "0").replace("I", "1").replace("L", "1").replace("S", "5")
+	digits_part = re.sub(r"&(?=[.:\-]?\d)", "8", digits_part)
 	numbers = re.findall(r"\d+", digits_part) or re.findall(r"\d+", trailing.replace("O", "0"))
 	if not numbers:
-		return None
+		return None, None
 
 	if len(numbers) >= 2:
 		hour, minute = numbers[0], numbers[1]
@@ -467,19 +492,33 @@ def parse_time(text):
 		hour, minute = numbers[0][:-2], numbers[0][-2:]
 	else:
 		hour, minute = numbers[0], "0"
+
+	note = None
+	if meridiem and len(hour) >= 2 and hour[0] == "1" and int(hour) > 12:
+		# "1900 AM": the cell's ruled line was read as a leading 1.
+		hour = hour[1:]
+		note = f"read '{text.strip()}' as {int(hour)}:{minute[:2]}"
 	try:
 		hour, minute = int(hour), int(minute[:2])
 	except ValueError:
-		return None
-	if hour > 23 or minute > 59:
-		return None
+		return None, None
+	if hour > 23:
+		return None, None
+	if minute > 59:
+		note = f"minutes in '{text.strip()}' are not valid, taken as :00"
+		minute = 0
 
-	if meridiem and hour <= 12:
-		if meridiem.group(1) == "A":
-			hour = 0 if hour == 12 else hour
-		else:
-			hour = 12 if hour == 12 else hour + 12
-	return f"{hour:02d}:{minute:02d}:00"
+	if meridiem:
+		if hour == 0:
+			# There is no 0 o'clock on an AM/PM clock: the hour digit was lost
+			# ("00AM" for "7.00AM") or misread ("0.00" for "9.00").
+			return None, f"hour not readable in '{text.strip()}'"
+		if hour <= 12:
+			if meridiem.group(1) == "A":
+				hour = 0 if hour == 12 else hour
+			else:
+				hour = 12 if hour == 12 else hour + 12
+	return f"{hour:02d}:{minute:02d}:00", note
 
 
 def duration_hours(from_time, to_time):
@@ -561,6 +600,91 @@ def _make_date(day, month, year):
 		return None
 
 
+def date_time_candidates(text):
+	"""Every way `text` can START with a date d/m/yy, as a list of
+	(day, month, year, rest, separator_score).
+
+	Built for what Vision really returns for handwritten dates on these ruled
+	forms (seen on live scans): a '/' read as the digit 1 or dropped
+	altogether, and the date glued to the time in the next column —
+	"1419269.00" is 14/9/26 followed by 9.00, "719126900" is 7/9/26 then 900.
+	`rest` is whatever follows the date (the From time, or "")."""
+	s = re.sub(r"\s+", "", text or "")
+	s = re.sub(r"[|lI!\\\[\]()]", "/", s).lstrip("/-.,:;'\"_")
+	this_year = date.today().year
+
+	def separator_options(pos):
+		options = [(pos, 0.0)]
+		if pos < len(s):
+			if s[pos] in "/-.,":
+				options.append((pos + 1, 1.0))
+			elif s[pos] == "1":
+				options.append((pos + 1, 0.5))
+		return options
+
+	found = []
+	for day_len in (1, 2):
+		day_text = s[:day_len]
+		if len(day_text) < day_len or not day_text.isdigit():
+			continue
+		for after_sep1, score1 in separator_options(day_len):
+			for month_len in (1, 2):
+				month_text = s[after_sep1:after_sep1 + month_len]
+				if len(month_text) < month_len or not month_text.isdigit():
+					continue
+				for after_sep2, score2 in separator_options(after_sep1 + month_len):
+					for year_len in (2, 4):
+						year_text = s[after_sep2:after_sep2 + year_len]
+						if len(year_text) < year_len or not year_text.isdigit():
+							continue
+						day, month = int(day_text), int(month_text)
+						year = int(year_text) + (2000 if year_len == 2 else 0)
+						if not (this_year - 6 <= year <= this_year + 1):
+							continue
+						if _make_date(day, month, year) is None:
+							continue
+						found.append((day, month, year, s[after_sep2 + year_len:], score1 + score2))
+	return found
+
+
+def _best_date_candidate(candidates, expected):
+	"""expected = (month, year) the sheet is for (either may be None)."""
+	if not candidates:
+		return None
+
+	def score(candidate):
+		_day, month, year, rest, separators = candidate
+		points = separators
+		if expected and expected[0] and month == expected[0]:
+			points += 3
+		if expected and expected[1] and year == expected[1]:
+			points += 3
+		if not rest or parse_time(rest):
+			points += 1
+		return points
+
+	return max(candidates, key=score)
+
+
+def parse_month_text(text):
+	"""'September-26' / 'AUGUST 2026' -> (9, 2026). Either part may be None."""
+	month = year = None
+	for letters in re.findall(r"[A-Za-z]{3,}", text or ""):
+		lowered = letters.lower()
+		for index, name in enumerate(MONTH_NAMES):
+			if lowered[:3] == name[:3].lower() or _similar(lowered, name.lower()) >= 0.75:
+				month = index + 1
+				break
+		if month:
+			break
+	for digits in re.findall(r"\d+", text or ""):
+		value = int(digits) + (2000 if len(digits) == 2 else 0)
+		if len(digits) in (2, 4) and date.today().year - 6 <= value <= date.today().year + 1:
+			year = value
+			break
+	return month, year
+
+
 # ---------------------------------------------------------------------------
 # 5. Rows
 # ---------------------------------------------------------------------------
@@ -573,7 +697,8 @@ def _cell_confidence(cells):
 	return statistics.mean(scores) if scores else DEFAULT_WORD_CONFIDENCE
 
 
-def _build_rows(words, header, columns, anchors, pitch, template):
+def _build_rows(words, header, columns, anchors, pitch, template, expected=None):
+	"""expected: (month, year) read from the sheet's MONTH box, if any."""
 	ys = [a["y"] for a in anchors]
 	top = max(header["ref"]["cy"] + 0.8 * header["h"], ys[0] - 0.6 * pitch)
 	bottom = ys[-1] + 0.6 * pitch
@@ -587,19 +712,43 @@ def _build_rows(words, header, columns, anchors, pitch, template):
 		column = _column_of(w, columns)
 		cells_by_row[nearest].setdefault(column, []).append(w)
 
-	rows = []
-	for anchor, cells in zip(anchors, cells_by_row):
-		notes = []
-		day, month, year = parse_date_parts(_join(cells.get("date", [])))
+	# Vision often glues the date to the From time across the column line, so
+	# the two cells are read as one string and split again by date_time_candidates.
+	combined = [_join(cells.get("date", []) + cells.get("from", [])) for cells in cells_by_row]
+	candidates = [date_time_candidates(text) for text in combined]
+	if not expected or not all(expected):
+		# No (complete) MONTH box: the month/year most rows can agree on.
+		votes = [pair for row in candidates for pair in {(c[1], c[2]) for c in row}]
+		voted = statistics.multimode(votes)[0] if votes else (None, None)
+		expected = ((expected or (None, None))[0] or voted[0], (expected or (None, None))[1] or voted[1])
 
-		from_time = parse_time(_join(cells.get("from", [])))
-		to_time = parse_time(_join(cells.get("to", [])))
+	rows = []
+	for anchor, cells, row_candidates in zip(anchors, cells_by_row, candidates):
+		notes = []
+		date_text = _join(cells.get("date", []))
+		chosen = _best_date_candidate(row_candidates, expected)
+		if chosen:
+			day, month, year, from_text = chosen[0], chosen[1], chosen[2], chosen[3]
+		else:
+			day, month, year = parse_date_parts(date_text)
+			from_text = _join(cells.get("from", []))
+
+		ruling = re.match(r"^[/|]+1(\d{3})(?!\d)", from_text)
+		if ruling:
+			# "/1900": the column line between Date and From read as "/1".
+			from_text = ruling.group(1) + from_text[ruling.end():]
+			notes.append("time: from read with the column line ignored")
+		from_time, from_note = parse_time_ex(from_text)
+		to_time, to_note = parse_time_ex(_join(cells.get("to", [])))
 		if (cells.get("from") or cells.get("to")) and not (from_time and to_time):
 			# Handwriting often straddles the From|To ruling; read both cells together.
-			joined = _join(cells.get("from", []) + cells.get("to", []))
+			joined = from_text + _join(cells.get("to", []))
 			both = re.findall(r"\d{1,2}\s*[:.\-,]?\s*\d{0,2}\s*[AaPp]\s*\.?\s*[MmNnHh]", joined)
-			if len(both) == 2:
-				from_time, to_time = parse_time(both[0]), parse_time(both[1])
+			if len(both) == 2 and parse_time(both[0]) and parse_time(both[1]):
+				(from_time, from_note), (to_time, to_note) = parse_time_ex(both[0]), parse_time_ex(both[1])
+		for label, note in (("from", from_note), ("to", to_note)):
+			if note:
+				notes.append(f"time: {label} {note}")
 
 		hours = {}
 		for key in ("total", "normal", "ot", "break"):
@@ -608,11 +757,13 @@ def _build_rows(words, header, columns, anchors, pitch, template):
 			if note:
 				notes.append(f"{key}: {note}")
 
-		description = " ".join(w["text"] for w in sorted(cells.get("desc", []), key=lambda w: (round(w["cy"] / max(pitch * 0.4, 1)), w["cx"])))
-		description = re.sub(r"\s+", " ", description).strip(" -–—_.") or None
+		description_words = [w for w in cells.get("desc", []) if not _is_foreign_script(w["text"])]
+		description = " ".join(w["text"] for w in sorted(description_words, key=lambda w: (round(w["cy"] / max(pitch * 0.4, 1)), w["cx"])))
+		description = re.sub(r"\s+", " ", description).strip(" -–—_.=") or None
 
 		has_date = day is not None
-		has_content = bool(from_time or to_time or any(hours.get(k) for k in hours) or hours.get("total") is None and cells.get("total"))
+		has_time_text = bool(from_text.strip() or cells.get("to"))
+		has_content = bool(from_time or to_time or has_time_text or any(hours.get(k) for k in hours) or hours.get("total") is None and cells.get("total"))
 		if not has_date and not has_content:
 			continue
 		if has_date and not has_content and not description:
@@ -623,14 +774,14 @@ def _build_rows(words, header, columns, anchors, pitch, template):
 		rows.append({
 			"day_index": anchor["day_index"],
 			"date_parts": (day, month, year),
-			"date_text": _join(cells.get("date", [])),
+			"date_text": date_text,
 			"from_time": from_time,
 			"to_time": to_time,
 			"hours": hours,
 			"work_description": description,
 			"vision_confidence": _cell_confidence(cells),
 			"notes": notes,
-			"has_time_text": bool(cells.get("from") or cells.get("to")),
+			"has_time_text": has_time_text,
 		})
 	return rows
 
@@ -690,6 +841,40 @@ def _resolve_dates(rows, template):
 			previous = row["log_date"] or previous
 
 
+def _move_misplaced_overtime(rows, template):
+	"""Weekly sheets only. Some operators write the overtime figure in the
+	'Normal Shift Hours' column and leave 'Over-Time Hours' empty (seen on a
+	live sheet: Total 13 / Normal 1, Total 16 / Normal 4, ...). When NO row
+	has overtime and the 'normal' figures are too small to be a normal shift,
+	treat them as the overtime they evidently are — and say so, so the row
+	is still reviewed."""
+	if template != "Weekly" or any(row["hours"].get("ot") for row in rows):
+		return
+	misplaced = [
+		row for row in rows
+		if row["hours"].get("normal") and row["hours"].get("total") and row["hours"]["normal"] <= row["hours"]["total"] / 2.0
+	]
+	if len(misplaced) < 2 or any(
+		row["hours"].get("normal") and row not in misplaced for row in rows
+	):
+		return
+	for row in misplaced:
+		row["hours"]["ot"], row["hours"]["normal"] = row["hours"]["normal"], 0.0
+		row["notes"].append(
+			f"ot: {row['hours']['ot']:g} was written in the Normal Shift column on the sheet; taken as overtime"
+		)
+
+
+def _flag_odd_blanks(rows):
+	"""A Normal Shift cell that is blank on one row but filled on most of the
+	sheet was most likely missed by OCR rather than left empty."""
+	filled = [row for row in rows if row["hours"].get("normal")]
+	if len(rows) >= 4 and len(filled) >= 0.6 * len(rows):
+		for row in rows:
+			if row["hours"].get("normal") == 0 and row["hours"].get("total"):
+				row["notes"].append("normal: blank here but filled on the other rows — check")
+
+
 def _finalise_row(row):
 	hours, notes = row["hours"], row["notes"]
 	confidence = row["vision_confidence"]
@@ -724,11 +909,17 @@ def _finalise_row(row):
 		confidence = min(confidence, 0.5)
 	normal, overtime, breakdown = normal or 0.0, overtime or 0.0, breakdown or 0.0
 
-	if normal and overtime and total and abs((normal + overtime) - total) > 0.5:
-		notes.append(f"hours: normal {normal:g} + overtime {overtime:g} does not equal total {total:g}")
+	if normal and total and abs((normal + overtime) - total) > 0.5:
+		# Also catches overtime written in the Normal Shift column by mistake.
+		notes.append(f"hours: normal {normal:g} + overtime {overtime:g} does not equal total {total:g} (value in the wrong column?)")
 		confidence = min(confidence, 0.6)
-	if any(": read '" in note for note in notes):
+	if any(": read '" in note or "taken as" in note or " read '" in note or "column line" in note or "— check" in note for note in notes):
 		confidence = min(confidence, 0.6)
+	if not notes and row["log_date"] and span is not None and total and abs(span - total) <= 0.5:
+		# Handwriting gets a modest per-word score from Vision even when it is
+		# read correctly. A row whose date fits the sequence and whose Total
+		# equals its own From–To span has been confirmed twice over.
+		confidence = max(confidence, 0.85)
 
 	day_label = DAY_NAMES[row["day_index"]].title() if row["day_index"] is not None else None
 	if day_label is None and row["log_date"]:
@@ -833,7 +1024,13 @@ def _read_header_block(words, header, page_width):
 			continue
 		if not n and w["text"].strip() not in ("-", "/", ".", "&"):
 			continue
+		if _is_foreign_script(w["text"]):
+			continue
 		eligible = [g for g, members in groups.items() if members and min(label["x1"] for label in members) < w["cx"]]
+		# Something written on the right half of the page (e.g. under the
+		# printed "W. O. NO.") never belongs to a left-hand label.
+		if w["cx"] >= split and groups[1]:
+			eligible = [g for g in eligible if g == 1]
 		if not eligible:
 			continue
 		g = max(eligible)
@@ -858,8 +1055,8 @@ def _read_header_block(words, header, page_width):
 		if not text:
 			continue
 		if key == "log_sheet_no":
-			digits = re.sub(r"\D", "", text.translate(DIGIT_CONFUSIONS))
-			text = digits or None
+			run = re.search(r"\d{3,6}", text) or re.search(r"\d{3,6}", text.translate(DIGIT_CONFUSIONS))
+			text = run.group(0) if run else None
 		elif key == "regn_no":
 			text = re.sub(r"[\s|]", "", text).upper()
 		if text:
@@ -876,7 +1073,7 @@ def _read_hour_meter(words, below_y):
 		if not anchor:
 			continue
 		right = sorted(
-			(w for w in footer if w["x0"] >= anchor["x1"] - 2 and abs(w["cy"] - anchor["cy"]) < 1.6 * anchor["h"]),
+			(w for w in footer if w["x0"] >= anchor["x1"] - 2 and abs(w["cy"] - anchor["cy"]) < 0.8 * anchor["h"]),
 			key=lambda w: w["x0"],
 		)
 		digits = ""
@@ -888,9 +1085,58 @@ def _read_hour_meter(words, below_y):
 				break
 			chunk = re.sub(r"\D", "", w["text"].translate(DIGIT_CONFUSIONS)) if re.search(r"\d", w["text"]) else ""
 			digits += chunk
+			if len(digits) >= 5:
+				break
 		if 3 <= len(digits) <= 7:
 			out[key] = float(digits)
 	return out
+
+
+def _read_footer_totals(words, below_y):
+	"""The sheet's own handwritten totals under the table — 'TOTAL NO. OF
+	WORKING DAYS / SHIFTS = 6' and 'TOTAL NO. OF OVERTIME HOURS = 25' — used
+	only to cross-check what was read from the rows."""
+	footer = [w for w in words if w["cy"] > below_y]
+	out = {}
+	for key, starts in (("sheet_working_days", ("shifts", "shiftq")), ("sheet_overtime_hours", ("overtime",))):
+		anchor = next((w for w in footer if _norm(w["text"]).startswith(starts)), None)
+		if not anchor:
+			continue
+		right = sorted(
+			(w for w in footer if w["x0"] >= anchor["x1"] - 2 and abs(w["cy"] - anchor["cy"]) < 0.8 * anchor["h"]),
+			key=lambda w: w["x0"],
+		)
+		for w in right:
+			n = _norm(w["text"])
+			if w["text"].strip().startswith("(") or n in ("in", "words", "total") or w["x0"] - anchor["x1"] > 14 * anchor["h"]:
+				break
+			if n in ("hours", "") or not re.search(r"[0-9A-Za-z]", w["text"]):
+				continue
+			digits = re.fullmatch(r"\d{1,3}", w["text"].strip().translate(DIGIT_CONFUSIONS))
+			if digits:
+				out[key] = float(digits.group(0))
+			break
+	return out
+
+
+def _month_from_page(words, header, limit_y):
+	"""(month, year) the sheet is for: the MONTH box if it was read, else any
+	month name written above the table."""
+	month, year = parse_month_text(header.get("month_text"))
+	if month and year:
+		return month, year
+	top = [w for w in words if w["cy"] < limit_y]
+	for w in top:
+		found_month, _ = parse_month_text(w["text"]) if len(_norm(w["text"])) >= 3 else (None, None)
+		if not found_month:
+			continue
+		nearby = " ".join(
+			x["text"] for x in sorted(top, key=lambda x: x["cx"])
+			if x is not w and abs(x["cy"] - w["cy"]) < 2.0 * w["h"] and x["cx"] > w["x0"]
+		)
+		_, found_year = parse_month_text(w["text"] + " " + nearby)
+		return month or found_month, year or found_year
+	return month, year
 
 
 # ---------------------------------------------------------------------------
@@ -952,14 +1198,34 @@ def parse_sheet(words):
 		return result
 	anchors, pitch = located
 
-	rows = _build_rows(words, header, columns, anchors, pitch, template)
+	expected = _month_from_page(words, result["header"], header["block_limit"])
+	rows = _build_rows(words, header, columns, anchors, pitch, template, expected)
 	_resolve_dates(rows, template)
+	_move_misplaced_overtime(rows, template)
+	_flag_odd_blanks(rows)
 	result["rows"] = [_finalise_row(row) for row in rows]
 	if not result["rows"]:
 		result["warnings"].append("The table was found but every row looked empty.")
 
+	table_bottom = anchors[-1]["y"] + 0.5 * pitch
 	if template == "Weekly":
-		result["header"].update(_read_hour_meter(words, anchors[-1]["y"] + 0.5 * pitch))
+		result["header"].update(_read_hour_meter(words, table_bottom))
+
+	# Cross-check the rows against the totals handwritten under the table.
+	totals = _read_footer_totals(words, table_bottom)
+	result["header"].update(totals)
+	if result["rows"]:
+		overtime_read = sum(r["overtime_hours"] for r in result["rows"])
+		if "sheet_overtime_hours" in totals and abs(totals["sheet_overtime_hours"] - overtime_read) > 0.5:
+			result["warnings"].append(
+				f"The sheet's own 'Total No. of Overtime Hours' is {totals['sheet_overtime_hours']:g} but the rows read "
+				f"add up to {overtime_read:g} — an overtime entry was probably missed, misread or written in another column."
+			)
+		if "sheet_working_days" in totals and int(totals["sheet_working_days"]) != len(result["rows"]):
+			result["warnings"].append(
+				f"The sheet's own 'Total No. of Working Days' is {totals['sheet_working_days']:g} but {len(result['rows'])} "
+				"row(s) were read."
+			)
 
 	dates = sorted(r["log_date"] for r in result["rows"] if r["log_date"])
 	if dates:

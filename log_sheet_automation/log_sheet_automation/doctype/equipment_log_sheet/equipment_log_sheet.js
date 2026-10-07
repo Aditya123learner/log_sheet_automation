@@ -120,7 +120,7 @@ frappe.ui.form.on("Equipment Log Sheet", {
 		if (
 			!frm.is_new() &&
 			has_role("Log Sheet Operations Approver", "Log Sheet Sales Resolver", "Log Sheet Manager", "System Manager") &&
-			["Pending", "Exception"].includes(frm.doc.sap_validation_status)
+			["Pending", "Exception", "Failed"].includes(frm.doc.sap_validation_status)
 		) {
 			frm.add_custom_button(__("Run SAP Validation"), () => {
 				frappe.call({
@@ -136,7 +136,7 @@ frappe.ui.form.on("Equipment Log Sheet", {
 		if (
 			!frm.is_new() &&
 			has_role("Log Sheet Sales Resolver", "Log Sheet Manager", "System Manager") &&
-			frm.doc.sap_validation_status === "Exception"
+			["Exception", "Failed"].includes(frm.doc.sap_validation_status)
 		) {
 			frm.add_custom_button(__("Request SAP Revalidation"), () => {
 				frappe.prompt(
