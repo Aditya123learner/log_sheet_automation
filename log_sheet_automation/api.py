@@ -189,6 +189,7 @@ def _run_ocr(doc, settings, pages):
 				summary.append({"page_no": result["page_no"], "skipped": str(e)})
 				continue
 
+		_blank_unread_times(target, result)
 		if keep_dump and result.get("word_dump"):
 			_attach_word_dump(target, result)
 		summary.append(dict(outcome, name=target.name, page_no=result["page_no"]))
@@ -369,6 +370,20 @@ def _apply_ocr_result(doc, result, settings, threshold, match_equipment=False):
 
 	_log_event(doc, "System", prior_state, "AI Review", "OCR Completed", "Log Sheet Operator", comment=comment)
 	return {"rows": len(rows), "low_confidence": low_confidence, "template": sheet.get("template")}
+
+
+def _blank_unread_times(doc, result):
+	"""Frappe fills every empty Time field of a NEW child row with the current
+	clock time when the parent is saved (create_new.set_dynamic_default_values).
+	For a From/To that OCR could not read that would silently store "now" —
+	e.g. 12:24:05 — as if it had been read off the sheet. Put the blank back."""
+	rows = (result.get("sheet") or {}).get("rows") or []
+	for child, row in zip(doc.daily_rows, rows):
+		for fieldname in ("from_time", "to_time"):
+			if not row.get(fieldname) and child.get(fieldname):
+				child.set(fieldname, None)
+				if child.get("name"):
+					frappe.db.set_value("Equipment Log Sheet Day", child.name, fieldname, None, update_modified=False)
 
 
 def _attach_word_dump(doc, result):

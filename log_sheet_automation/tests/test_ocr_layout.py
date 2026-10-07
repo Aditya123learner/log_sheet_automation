@@ -7,9 +7,9 @@
 
 The two page builders below reproduce the REAL printed layout of Sanghvi
 Movers' Monthly and Weekly templates — the heading/label coordinates were
-measured off the sample scans (Crane_Log_Sheets_Aug-2026.pdf page 1 at
-2065x2800 px, Crawler_Crane_Log_Sheets_Sep-2026.pdf page 1 at 1143x955 px) —
-and add handwriting tokens the way Google Vision typically returns them
+measured off the sample scans (a Monthly page at
+2065x2800 px and a Weekly page at 1143x955 px) —
+and add handwriting tokens (with made-up names) the way Google Vision returns them
 (split at punctuation, digits misread as letters, AM/PM on a second line).
 """
 
@@ -71,10 +71,10 @@ def monthly_page(rows, skew_degrees=0.0, **kwargs):
 	"""rows: list of dicts with the handwriting tokens of each table row."""
 	tokens = list(MONTHLY_PRINTED)
 	tokens += [
-		("Raju", 470, 485, 110, 45), ("|", 585, 482, 8, 50), ("Balakrishnan", 600, 484, 240, 50),
+		("Ravi", 470, 485, 110, 45), ("|", 585, 482, 8, 50), ("Kulkarni", 600, 484, 240, 50),
 		("AUGUST", 1290, 492, 150, 34), ("-", 1445, 505, 14, 6), ("26", 1465, 492, 50, 34),
-		("SAC1600S", 420, 520, 210, 36), ("Ethayapuram", 1290, 528, 250, 38),
-		("MH01EF6657", 440, 552, 330, 40),
+		("SAC1600S", 420, 520, 210, 36), ("Rampur", 1290, 528, 250, 38),
+		("MH12AB1234", 440, 552, 330, 40),
 	]
 	for i, row in enumerate(rows):
 		y = 700 + 35 * i
@@ -93,7 +93,7 @@ def monthly_row(day, total="24", normal="24", description=("Crane", "Marching"),
 	return date_tokens + [
 		("8.00AM", 322, 118), ("8.00", 462, 66), ("AM", 530, 44),
 		(total, 632, 50), (normal, 762, 50), ("-", 940, 22),
-		("Raju", 1040, 70), ("sgn", 1160, 60),
+		("Ravi", 1040, 70), ("sgn", 1160, 60),
 		(description[0], 1330, 110), (description[1], 1450, 150),
 	]
 
@@ -125,12 +125,12 @@ WEEKLY_PRINTED = [
 	("MONDAY", 16, 362, 64, 14), ("TUESDAY", 13, 407, 70, 14), ("WEDNESDAY", 14, 452, 97, 15), ("THURSDAY", 13, 498, 82, 14),
 	("FRIDAY", 14, 543, 60, 14), ("SATURDAY", 15, 589, 79, 13), ("SUNDAY", 14, 634, 62, 14),
 	("TOTAL", 22, 684, 40, 13), ("NO", 66, 684, 16, 13), ("OF", 88, 684, 14, 13), ("WORKING", 106, 685, 60, 14),
-	("DAYS", 170, 685, 34, 13), ("6", 245, 678, 14, 22), ("Six", 420, 676, 40, 24),
+	("DAYS", 170, 685, 30, 13), ("/", 202, 685, 5, 13), ("SHIFTS", 209, 685, 30, 13), ("=", 241, 690, 6, 4), ("6", 252, 678, 14, 22), ("Six", 420, 676, 40, 24),
 	("TOTAL", 546, 686, 36, 12), ("NO", 586, 686, 14, 12), ("OF", 604, 686, 12, 12), ("OVERTIME", 620, 686, 60, 12),
 	("HOURS", 684, 686, 38, 12), ("25", 730, 676, 26, 22),
 	("HOUR", 18, 720, 34, 12), ("METER", 56, 720, 40, 12), ("READING", 100, 720, 52, 12), (":", 155, 720, 3, 12),
-	("OPENING", 162, 720, 52, 12), ("=", 218, 724, 8, 5), ("3", 232, 708, 14, 24), ("l756", 248, 708, 62, 24),
-	("CLOSING", 380, 720, 50, 12), ("31804", 436, 706, 90, 26),
+	("OPENING", 162, 720, 52, 12), ("=", 218, 724, 8, 5), ("2", 232, 708, 14, 24), ("o756", 248, 708, 62, 24),
+	("CLOSING", 380, 720, 50, 12), ("20804", 436, 706, 90, 26),
 	("TOTAL", 560, 722, 36, 12), ("NO", 600, 722, 14, 12), ("BREAKDOWN", 620, 722, 70, 12), ("HOURS", 694, 722, 38, 12),
 	("CERTIFIED", 22, 756, 128, 20), ("BY", 160, 756, 30, 20),
 	("4.", 11, 898, 10, 11), ("Payment", 26, 898, 54, 14), ("30", 268, 898, 13, 10), ("days", 287, 898, 27, 13),
@@ -139,13 +139,13 @@ WEEKLY_PRINTED = [
 ]
 
 WEEKLY_HANDWRITING = [
-	("7368", 155, 142, 66, 22),
+	("5012", 155, 142, 66, 22),
 	("September", 925, 124, 130, 26), ("-", 1058, 136, 8, 4), ("26", 1068, 126, 32, 22),
-	("Sunil", 240, 182, 70, 26), ("Mehta", 318, 182, 80, 26),
+	("Anil", 240, 182, 70, 26), ("Sharma", 318, 182, 80, 26),
 	("CKE", 236, 226, 60, 26), ("2500-2", 300, 226, 100, 26),
-	("JD", 262, 272, 36, 24), ("04", 304, 272, 34, 24), ("2067", 346, 272, 66, 24),
-	("UTCL", 782, 232, 62, 24), ("Petnikota", 850, 232, 110, 26),
-	("Ultratech", 782, 276, 100, 26), ("Cement", 888, 276, 80, 24), ("A.P", 974, 276, 46, 24),
+	("KA", 262, 272, 36, 24), ("05", 304, 272, 34, 24), ("1234", 346, 272, 66, 24),
+	("ACL", 782, 232, 62, 24), ("Rampur", 850, 232, 110, 26),
+	("Acme", 782, 276, 100, 26), ("Cement", 888, 276, 80, 24), ("M.P", 974, 276, 46, 24),
 	# TUESDAY: 1/9/26, 9.00 AM -> 11.00 PM, total 14, OT 2
 	("1/9/26", 119, 400, 65, 22), ("9.00", 207, 398, 46, 16), ("AM", 217, 418, 28, 16),
 	("11.00", 290, 396, 50, 16), ("PM", 300, 418, 28, 16), ("14", 396, 404, 28, 22), ("2", 566, 404, 14, 22),
@@ -249,11 +249,11 @@ class TestMonthlySheet(unittest.TestCase):
 		sheet = parse(monthly_page(self.rows()))
 		self.check(sheet)
 		header = sheet["header"]
-		self.assertIn("Balakrishnan", header["operator"])
+		self.assertIn("Kulkarni", header["operator"])
 		self.assertEqual(header["crane_model"], "SAC1600S")
-		self.assertEqual(header["regn_no"], "MH01EF6657")
+		self.assertEqual(header["regn_no"], "MH12AB1234")
 		self.assertEqual(header["month_text"], "AUGUST-26")
-		self.assertEqual(header["site"], "Ethayapuram")
+		self.assertEqual(header["site"], "Rampur")
 		self.assertNotIn("client", header)
 
 	def test_crooked_scan(self):
@@ -300,15 +300,15 @@ class TestWeeklySheet(unittest.TestCase):
 		sheet = parse(weekly_page())
 		self.check(sheet)
 		header = sheet["header"]
-		self.assertEqual(header["log_sheet_no"], "7368")
-		self.assertEqual(header["operator"], "Sunil Mehta")
+		self.assertEqual(header["log_sheet_no"], "5012")
+		self.assertEqual(header["operator"], "Anil Sharma")
 		self.assertEqual(header["crane_model"], "CKE 2500-2")
-		self.assertEqual(header["regn_no"], "JD042067")
+		self.assertEqual(header["regn_no"], "KA051234")
 		self.assertEqual(header["month_text"], "September-26")
-		self.assertEqual(header["site"], "UTCL Petnikota")
-		self.assertEqual(header["client"], "Ultratech Cement A.P")
-		self.assertEqual(header["hour_meter_opening"], 31756.0)
-		self.assertEqual(header["hour_meter_closing"], 31804.0)
+		self.assertEqual(header["site"], "ACL Rampur")
+		self.assertEqual(header["client"], "Acme Cement M.P")
+		self.assertEqual(header["hour_meter_opening"], 20756.0)
+		self.assertEqual(header["hour_meter_closing"], 20804.0)
 
 	def test_crooked_scan(self):
 		for degrees in (-1.5, 2.5):
@@ -328,6 +328,122 @@ class TestWeeklySheet(unittest.TestCase):
 		]
 		sheet = parse(weekly_page(handwriting=handwriting))
 		self.assertEqual([(r["day_label"], r["log_date"], r["total_hours"]) for r in sheet["rows"]], [("Monday", "2026-09-21", 16.0)])
+
+
+class TestPatternsSeenOnLiveScans(unittest.TestCase):
+	"""Each case below is a pattern Google Vision actually returned for the
+	real sheets (word positions kept, names changed)."""
+
+	def test_date_glued_to_from_time(self):
+		expected = (9, 2026)
+		cases = {
+			"1419269.00AM": (14, 9, 2026, "9.00AM"),   # 14/9/26 + 9.00: one '/' read as 1, one dropped
+			"15191269.00AM": (15, 9, 2026, "9.00AM"),  # both '/' read as 1
+			"719126900AM": (7, 9, 2026, "900AM"),
+			"1219/269.00AM": (12, 9, 2026, "9.00AM"),
+			"18/91269.00Am": (18, 9, 2026, "9.00Am"),
+			"10/9/26/1900AM": (10, 9, 2026, "/1900AM"),
+			"119/260.00AM": (1, 9, 2026, "0.00AM"),
+			"2219/26": (22, 9, 2026, ""),
+			"2/9/269:00AM": (2, 9, 2026, "9:00AM"),
+		}
+		for text, want in cases.items():
+			with self.subTest(text=text):
+				best = L._best_date_candidate(L.date_time_candidates(text), expected)
+				self.assertEqual(best[:4], want)
+		self.assertEqual(L.date_time_candidates("9.00AM"), [])
+		self.assertEqual(L.date_time_candidates("11.00PM"), [])
+
+	def test_month_box(self):
+		self.assertEqual(L.parse_month_text("September-26"), (9, 2026))
+		self.assertEqual(L.parse_month_text("AUGUST-2026"), (8, 2026))
+		self.assertEqual(L.parse_month_text("August"), (8, None))
+		self.assertEqual(L.parse_month_text(None), (None, None))
+
+	def test_times(self):
+		self.assertIsNone(L.parse_time("0.00AM"))          # hour digit misread: no 0 o'clock with AM/PM
+		self.assertIsNone(L.parse_time("00AM"))            # hour digit lost
+		self.assertEqual(L.parse_time_ex("1.80AM")[0], "01:00:00")
+		self.assertIn("not valid", L.parse_time_ex("1.80AM")[1])
+		self.assertEqual(L.parse_time("1900AM"), "09:00:00")   # column line read as a leading 1
+		self.assertEqual(L.parse_time("&.00AM"), "08:00:00")   # 8 read as &
+		self.assertEqual(L.parse_time("1000PM"), "22:00:00")
+
+	def test_hours(self):
+		self.assertEqual(L.parse_hours("2424")[0], 24.0)   # Total and Normal cells read as one word
+		self.assertEqual(L.parse_hours("A")[0], 4.0)
+		self.assertIsNone(L.parse_hours("214")[0])
+
+	def low_resolution_weekly(self, handwriting):
+		# On the low-resolution pages Vision did not read the small "From" / "To" headings.
+		printed = [t for t in WEEKLY_PRINTED if t[0] not in ("From", "To")]
+		return parse(annotation(printed + handwriting, size=(1143, 955)))
+
+	def test_weekly_page_with_glued_dates_and_no_from_to_headings(self):
+		sheet = self.low_resolution_weekly([
+			("September", 925, 124, 130, 26), ("2026", 1068, 126, 44, 22),
+			("1419269.00", 120, 356, 140, 22), ("AM", 217, 374, 28, 16), ("1.00", 292, 352, 40, 16), ("AM", 300, 372, 28, 16),
+			("16", 396, 358, 28, 22), ("4", 566, 358, 14, 22),
+			("1519", 112, 401, 50, 22), ("/", 166, 401, 6, 22), ("269.00", 176, 399, 84, 22), ("AM", 217, 420, 28, 16),
+			("12.00", 290, 397, 46, 16), ("AM", 300, 418, 28, 16), ("15", 396, 403, 28, 22), ("3", 566, 403, 14, 22),
+			("16/9/26/1900", 112, 446, 150, 22), ("1.00", 292, 444, 40, 16), ("AM", 300, 464, 28, 16),
+			("16", 396, 450, 28, 22), ("A", 566, 450, 14, 22),
+		])
+		rows = sheet["rows"]
+		self.assertEqual([r["log_date"] for r in rows], ["2026-09-14", "2026-09-15", "2026-09-16"])
+		self.assertEqual([r["from_time"] for r in rows], ["09:00:00"] * 3)
+		self.assertEqual([r["to_time"] for r in rows], ["01:00:00", "00:00:00", "01:00:00"])
+		self.assertEqual([r["total_hours"] for r in rows], [16.0, 15.0, 16.0])
+		self.assertEqual([r["overtime_hours"] for r in rows], [4.0, 3.0, 4.0])
+		self.assertGreaterEqual(rows[0]["confidence"], 0.75)    # every cross-check agrees
+		self.assertLess(rows[2]["confidence"], 0.75)            # 'A' taken as 4, column line ignored
+
+	def test_overtime_written_in_normal_shift_column(self):
+		handwriting = [("September", 925, 124, 130, 26), ("2026", 1068, 126, 44, 22), ("19", 730, 676, 26, 22)]
+		for i, (day, to, to_ampm, total, overtime) in enumerate([(7, "9.00", "PM", "12", None), (8, "10.00", "PM", "13", "1"), (9, "11.00", "PM", "14", "2"), (10, "1.00", "AM", "16", "4")]):
+			y = 356 + 45 * i
+			handwriting += [(f"{day}/9/26", 119, y, 65, 22), ("9.00", 207, y - 4, 46, 16), ("AM", 217, y + 16, 28, 16),
+				(to, 292, y - 4, 40, 16), (to_ampm, 300, y + 16, 28, 16), (total, 396, y + 2, 28, 22)]
+			if overtime:
+				handwriting.append((overtime, 496, y + 2, 14, 22))   # under "Normal Shift Hours", not "Over-Time"
+		sheet = parse(weekly_page(handwriting=handwriting))
+		rows = sheet["rows"]
+		self.assertEqual([r["overtime_hours"] for r in rows], [0.0, 1.0, 2.0, 4.0])
+		self.assertEqual([r["normal_shift_hours"] for r in rows], [0.0] * 4)
+		for row in rows[1:]:
+			self.assertLess(row["confidence"], 0.75)
+			self.assertTrue(any("Normal Shift column" in note for note in row["notes"]))
+		# the sheet's own overtime total (19) does not match the rows (7): warned
+		self.assertTrue(any("Total No. of Overtime Hours" in w for w in sheet["warnings"]))
+
+	def test_sheet_totals_that_agree_raise_no_warning(self):
+		sheet = parse(weekly_page())   # footer says 6 days / 25 overtime hours, as do the rows
+		self.assertEqual(sheet["header"]["sheet_working_days"], 6.0)
+		self.assertEqual(sheet["header"]["sheet_overtime_hours"], 25.0)
+		self.assertFalse([w for w in sheet["warnings"] if "sheet's own" in w])
+
+	def test_missed_overtime_entry_is_caught_by_the_sheet_total(self):
+		handwriting = [t for t in WEEKLY_HANDWRITING if not (t[0] == "4" and t[2] == 541)]   # Friday's OT not read
+		sheet = parse(weekly_page(handwriting=handwriting))
+		self.assertTrue(any("is 25 but the rows read add up to 21" in w for w in sheet["warnings"]))
+
+	def test_lookalike_letters_and_scribbles(self):
+		handwriting = [t for t in WEEKLY_HANDWRITING if t[0] != "CKE"] + [("ске", 236, 226, 60, 26), ("سلم", 946, 452, 50, 20)]
+		sheet = parse(weekly_page(handwriting=handwriting))
+		self.assertEqual(sheet["header"]["crane_model"], "cke 2500-2")
+		self.assertIsNone(sheet["rows"][1]["work_description"])
+
+	def test_something_written_under_wo_no_is_not_the_log_sheet_number(self):
+		sheet = parse(weekly_page(handwriting=WEEKLY_HANDWRITING + [("D.", 700, 150, 16, 14)]))
+		self.assertEqual(sheet["header"]["log_sheet_no"], "5012")
+
+	def test_blank_normal_shift_on_one_monthly_row_is_flagged(self):
+		rows = [monthly_row(day) for day in range(14, 24)]
+		rows[4] = [t for t in rows[4] if t[1] != 762]   # Normal Shift cell not read
+		sheet = parse(monthly_page(rows))
+		self.assertEqual(sheet["rows"][4]["normal_shift_hours"], 0.0)
+		self.assertLess(sheet["rows"][4]["confidence"], 0.75)
+		self.assertGreaterEqual(sheet["rows"][3]["confidence"], 0.75)
 
 
 class TestUnreadablePages(unittest.TestCase):
