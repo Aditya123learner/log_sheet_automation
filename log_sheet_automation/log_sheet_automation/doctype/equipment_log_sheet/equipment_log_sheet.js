@@ -22,6 +22,21 @@ const STATE_COLOR = {
 };
 
 frappe.ui.form.on("Equipment Log Sheet", {
+	onload(frm) {
+		// A scan with many pages is read in a background job; the server
+		// tells this form when it has finished.
+		frappe.realtime.off("log_sheet_ocr_done");
+		frappe.realtime.on("log_sheet_ocr_done", (data) => {
+			if (!data || data.name !== frm.doc.name) return;
+			if (data.ok) {
+				show_ocr_result(data);
+			} else {
+				frappe.msgprint({ title: __("OCR failed"), indicator: "red", message: frappe.utils.escape_html(data.error || "") });
+			}
+			frm.reload_doc();
+		});
+	},
+
 	refresh(frm) {
 		if (frm.doc.workflow_state) {
 			frm.dashboard.add_indicator(
@@ -40,11 +55,23 @@ frappe.ui.form.on("Equipment Log Sheet", {
 			["Draft", "AI Review"].includes(frm.doc.workflow_state)
 		) {
 			frm.add_custom_button(__("Run OCR"), () => {
+				if (!frm.doc.source_document) {
+					frappe.msgprint(__("Attach the scanned log sheet under Source Document first, and save."));
+					return;
+				}
+				if (frm.is_dirty()) {
+					frappe.msgprint(__("Save the form first, then run OCR."));
+					return;
+				}
 				frappe.call({
 					method: "log_sheet_automation.api.run_log_sheet_ocr",
 					args: { name: frm.doc.name },
 					freeze: true,
-					callback: () => frm.reload_doc(),
+					freeze_message: __("Reading the scan with Google Vision..."),
+					callback: (r) => {
+						if (r.message) show_ocr_result(r.message);
+						frm.reload_doc();
+					},
 				});
 			});
 		}
@@ -259,4 +286,37 @@ function prompt_maintenance_decision(frm) {
 		},
 	});
 	dialog.show();
+}
+
+
+// One line per page of the scan: which Equipment Log Sheet it became, how
+// many Daily Log rows were read, and whether anything needs checking.
+function show_ocr_result(result) {
+	if (result.queued) {
+		frappe.msgprint({
+			title: __("OCR started"),
+			indicator: "blue",
+			message: __("This scan has {0} pages, so it is being read in the background. This form will refresh when it is done.", [result.pages]),
+		});
+		return;
+	}
+	const sheets = result.sheets || [];
+	const lines = sheets.map((sheet) => {
+		if (sheet.skipped) {
+			return __("Page {0}: skipped — {1}", [sheet.page_no, frappe.utils.escape_html(sheet.skipped)]);
+		}
+		const link = `<a href="/app/equipment-log-sheet/${encodeURIComponent(sheet.name)}">${frappe.utils.escape_html(sheet.name)}</a>`;
+		const review = sheet.low_confidence ? __("needs review") : __("read cleanly");
+		return __("Page {0}: {1} — {2} sheet, {3} row(s), {4}", [sheet.page_no, link, sheet.template || __("unrecognised"), sheet.rows, review]);
+	});
+	const needs_review = sheets.some((sheet) => sheet.skipped || sheet.low_confidence);
+	frappe.msgprint({
+		title: __("OCR complete"),
+		indicator: needs_review ? "orange" : "green",
+		message:
+			lines.join("<br>") +
+			(needs_review
+				? "<br><br>" + __("Check the rows marked Exception under Validation Results, correct the Daily Log, then tick OCR Review Complete.")
+				: ""),
+	});
 }
