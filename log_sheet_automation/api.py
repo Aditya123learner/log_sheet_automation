@@ -716,8 +716,10 @@ def run_log_sheet_sap_validation(name):
 	_require_role("Log Sheet Operations Approver", "Log Sheet Sales Resolver", "Log Sheet Manager", "System Manager")
 
 	doc = frappe.get_doc("Equipment Log Sheet", name)
-	if doc.sap_validation_status not in ("Pending", "Exception"):
-		frappe.throw(_("SAP validation can only be run while status is Pending or Exception."))
+	# "Failed" (the SAP endpoint could not be reached) must be retryable too,
+	# otherwise one outage leaves the sheet stuck in Sales Action Pending.
+	if doc.sap_validation_status not in ("Pending", "Exception", "Failed"):
+		frappe.throw(_("SAP validation can only be run while status is Pending, Exception or Failed."))
 
 	settings = _get_settings()
 	run_id, checks = sap_integration.validate(doc, settings)
@@ -775,8 +777,8 @@ def request_log_sheet_sap_revalidation(name, comment):
 		frappe.throw(_("A corrective-action comment is required to request revalidation."))
 
 	doc = frappe.get_doc("Equipment Log Sheet", name)
-	if doc.sap_validation_status != "Exception":
-		frappe.throw(_("Revalidation can only be requested while SAP status is Exception."))
+	if doc.sap_validation_status not in ("Exception", "Failed"):
+		frappe.throw(_("Revalidation can only be requested while SAP status is Exception or Failed."))
 
 	_log_event(
 		doc, "Sales Action", doc.workflow_state, doc.workflow_state, "Revalidation Requested",
