@@ -63,6 +63,7 @@ OWNER_MAP = {
 
 class EquipmentLogSheet(Document):
 	def validate(self):
+		self._set_default_client_approver()
 		self._validate_hour_ranges()
 		self._validate_no_duplicate()
 		self._recompute_aggregates()
@@ -88,9 +89,23 @@ class EquipmentLogSheet(Document):
 						)
 					)
 
+	# -- Client approver: default from the Operating Site ---------------------
+	def _set_default_client_approver(self):
+		"""A sheet with no approver chosen takes its site's Default Client
+		Approver, and the approver's email becomes the address the approval
+		link is sent to (unless one was typed in by hand)."""
+		if not self.client_approver and not self.client_recipient and self.operating_site:
+			self.client_approver = frappe.db.get_value("Operating Site", self.operating_site, "default_client_approver")
+		if self.client_approver and not self.client_recipient:
+			self.client_recipient = frappe.db.get_value("Contact", self.client_approver, "email_id")
+
 	# -- BR-004: one log per site + equipment + template + period ------------
 	def _validate_no_duplicate(self):
 		if not (self.operating_site and self.equipment and self.sheet_template and self.period_start_date):
+			return
+		# Demo/test sites read the same sample scans repeatedly; Settings has
+		# an explicit, off-by-default switch for that. Never on for real use.
+		if frappe.db.get_single_value("Log Sheet Automation Settings", "allow_duplicate_log_sheets"):
 			return
 		duplicate = frappe.db.get_value(
 			"Equipment Log Sheet",

@@ -227,6 +227,7 @@ def _sheet_for_page(parent, page_no):
 			"operating_site": parent.operating_site,
 			"customer": parent.customer,
 			"operator_user": parent.operator_user,
+			"client_approver": parent.client_approver,
 			"client_recipient": parent.client_recipient,
 			"ocr_template": parent.ocr_template,
 			"source_document": parent.source_document,
@@ -546,6 +547,8 @@ def generate_log_sheet_client_link(name):
 		"ok": True,
 		"token": token,  # returned once, never persisted — see README security notes
 		"approval_path": approval_path,
+		"approval_url": frappe.utils.get_url(approval_path),
+		"client_recipient": doc.client_recipient,
 		"expiry": str(expiry),
 		"workflow_state": doc.workflow_state,
 		"notification": delivery_status,
