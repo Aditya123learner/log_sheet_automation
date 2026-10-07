@@ -29,7 +29,7 @@
    "default": "Google Vision API",
    "idx": 2,
    "hidden": 0,
-   "description": "Locked to Google Vision API for this deployment. The Mock path still exists in integrations/ocr.py (kept as an offline fallback/reference) but is no longer selectable here. The earlier Azure Document Intelligence adapter has been removed entirely — it was built against the old one-record-per-day shape and doesn't fit the current Daily Log child-table model."
+   "description": "Locked to Google Vision API for this deployment."
   },
   {
    "fieldname": "ocr_timeout_seconds",
@@ -38,17 +38,19 @@
    "default": "30",
    "idx": 3,
    "reqd": 0,
-   "hidden": 0
+   "hidden": 0,
+   "description": "How long to wait for Google Vision per page."
   },
   {
    "fieldname": "mock_ocr_confidence_low_threshold",
-   "label": "Mock OCR Low-Confidence Threshold",
+   "label": "OCR Low-Confidence Threshold",
    "fieldtype": "Float",
    "default": "0.75",
    "precision": "2",
    "idx": 4,
    "reqd": 0,
-   "hidden": 0
+   "hidden": 0,
+   "description": "A Daily Log row read with a confidence below this (0–1) is marked as an Exception under Validation Results and keeps the sheet in AI Review until the operator ticks OCR Review Complete."
   },
   {
    "fieldtype": "Column Break",
@@ -67,41 +69,42 @@
    "hidden": 0
   },
   {
+   "fieldname": "google_service_account_key_file",
+   "label": "Google Service Account Key File (.json)",
+   "fieldtype": "Attach",
+   "description": "Upload the .json key file exactly as downloaded from Google Cloud (Console -> IAM & Admin -> Service Accounts -> Keys -> Add key -> JSON), then Save. On Save the file is checked, its contents are stored encrypted in this site's database, and the uploaded file itself is deleted — so the key never stays behind as a downloadable attachment. The Cloud Vision API must be enabled, with billing, on that key's project. To replace the key, upload the new file and Save. After saving, use the Test Google Vision Connection button at the top.",
+   "idx": 7
+  },
+  {
+   "fieldname": "google_key_status",
+   "label": "Google Key Loaded",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "description": "Which service account key is currently stored (never the key itself).",
+   "idx": 8
+  },
+  {
    "fieldname": "google_service_account_key",
    "fieldtype": "Password",
-   "label": "Google Service Account Key (JSON)",
-   "description": "Paste the FULL contents of the service account key JSON file here (from Google Cloud Console -> IAM & Admin -> Service Accounts -> Keys). Stored encrypted in this site's database, never in source control. The service account needs the \"Cloud Vision AI User\" role (or broader, e.g. Editor) on the project, and the Cloud Vision API must be enabled for that project. This is the only field needed for OCR — Vision API has no per-project processor to configure, unlike Document AI.",
-   "depends_on": "eval:doc.ocr_provider_mode=='Google Vision API'",
-   "idx": 7,
-   "reqd": 0,
-   "hidden": 0
-  },
-  {
-   "fieldname": "ocr_daily_row_pattern",
-   "label": "OCR Daily Row Pattern (regex)",
-   "fieldtype": "Code",
-   "default": "(?:(?P<day_label>mon|tue|wed|thu|fri|sat|sun)\\w*\\s+)?(?P<date>\\d{1,2}[-/.][A-Za-z]{3,9}[-/.]?\\d{2,4}|\\d{1,2}[-/.]\\d{1,2}[-/.]\\d{2,4}).*?(?P<from_time>\\d{1,2}[:.]\\d{2}\\s*(?:am|pm)?)\\s*(?:to|-|\\u2013)\\s*(?P<to_time>\\d{1,2}[:.]\\d{2}\\s*(?:am|pm)?).*?(?P<total_hours>\\d{1,2}(?:\\.\\d+)?)\\s+(?P<normal_shift_hours>\\d{1,2}(?:\\.\\d+)?)\\s+(?P<overtime_hours>\\d{1,2}(?:\\.\\d+)?)(?:\\s+(?P<breakdown_hours>\\d{1,2}(?:\\.\\d+)?))?",
-   "description": "ONE regular expression (not JSON), with named groups, tried against every line of Google Vision's raw recognized text to pull out one Daily Log row per matching line — named groups: day_label, date, from_time, to_time, total_hours, normal_shift_hours, overtime_hours, breakdown_hours, work_description (all optional; a line missing a group just leaves that value blank/0). This is the main thing to tune once you have a real filled-in log sheet and know what Vision actually recognizes off it — no code change/deploy needed. Leave this blank to use the built-in default in integrations/ocr.py. To see what Vision actually recognized on a real run (so you know what the pattern needs to match), check the \"OCR Completed\" entry in that log sheet's own audit trail — it includes the raw text. Cloud Vision's plain text detection has no real notion of table structure, so this line-based approach is a starting point, not a guarantee — treat every extracted row as needing a human check in AI Review until this has been verified against real output.",
-   "idx": 8,
-   "reqd": 0,
-   "hidden": 0
-  },
-  {
-   "fieldname": "ocr_field_label_patterns",
-   "label": "OCR Field Label Patterns (JSON)",
-   "fieldtype": "Code",
-   "options": "JSON",
-   "default": "{\n  \"working_hours\": [\n    \"working\\\\s*hours?\",\n    \"work\\\\s*hrs?\\\\.?\",\n    \"w\\\\.?\\\\s*hrs?\\\\.?\"\n  ],\n  \"breakdown_hours\": [\n    \"break\\\\s*-?\\\\s*down\\\\s*hours?\",\n    \"breakdown\\\\s*hrs?\\\\.?\",\n    \"b\\\\.?d\\\\.?\\\\s*hrs?\\\\.?\"\n  ],\n  \"overtime_hours\": [\n    \"over\\\\s*-?\\\\s*time\\\\s*hours?\",\n    \"o\\\\.?t\\\\.?\\\\s*hrs?\\\\.?\"\n  ]\n}",
-   "description": "Secondary tool, for matching an optional whole-sheet total that's printed as a single labelled value rather than inside the day-by-day table, as {\"field_name\": [\"regex pattern\", ...]}. Most tuning work happens on OCR Daily Row Pattern above, not this. Leave a field out (or leave this whole box blank) to fall back to the built-in default patterns in integrations/ocr.py.",
+   "label": "Google Service Account Key (stored, encrypted)",
+   "description": "Internal storage for the key loaded from the uploaded file. Hidden on purpose: a visible Password box gets auto-filled by browser password managers.",
    "idx": 9,
    "reqd": 0,
-   "hidden": 0
+   "hidden": 1
+  },
+  {
+   "fieldname": "ocr_keep_word_dump",
+   "label": "Keep OCR Word Dump",
+   "fieldtype": "Check",
+   "default": "1",
+   "description": "Attach a small private JSON file to each sheet with every word Google Vision recognised and where on the page it was. Needed to diagnose and tune a misread sheet without paying for another Vision call.",
+   "idx": 10
   },
   {
    "fieldtype": "Section Break",
    "label": "SAP Integration",
    "fieldname": "sap_integration_10",
-   "idx": 10,
+   "idx": 11,
    "reqd": 0,
    "hidden": 0
   },
@@ -112,7 +115,7 @@
    "options": "Live",
    "reqd": 1,
    "default": "Live",
-   "idx": 11,
+   "idx": 12,
    "hidden": 0,
    "description": "Locked to Live for this deployment. The Mock path still exists in integrations/sap.py (kept as an offline fallback/reference) but is no longer selectable here — every validation run now calls the real SAP endpoint below."
   },
@@ -123,7 +126,7 @@
    "options": "PASS\nEXPIRED_SO\nINSUFFICIENT_QTY",
    "default": "PASS",
    "depends_on": "eval:doc.sap_provider_mode=='Mock'",
-   "idx": 12,
+   "idx": 13,
    "reqd": 0,
    "hidden": 0,
    "description": "No longer reachable from the UI now that SAP Provider Mode is locked to Live — kept only so integrations/sap.py's Mock path still works if you ever re-enable it for offline testing."
@@ -133,14 +136,14 @@
    "label": "SAP Timeout (seconds)",
    "fieldtype": "Int",
    "default": "30",
-   "idx": 13,
+   "idx": 14,
    "reqd": 0,
    "hidden": 0
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_12",
-   "idx": 14,
+   "idx": 15,
    "label": "",
    "reqd": 0,
    "hidden": 0
@@ -150,7 +153,7 @@
    "label": "SAP Endpoint (Live)",
    "fieldtype": "Data",
    "depends_on": "eval:doc.sap_provider_mode=='Live'",
-   "idx": 15,
+   "idx": 16,
    "reqd": 0,
    "hidden": 0
   },
@@ -160,7 +163,7 @@
    "fieldtype": "Select",
    "options": "\nAPI Key\nOAuth",
    "depends_on": "eval:doc.sap_provider_mode=='Live'",
-   "idx": 16,
+   "idx": 17,
    "reqd": 0,
    "hidden": 0
   },
@@ -169,14 +172,14 @@
    "label": "SAP Credential",
    "fieldtype": "Password",
    "depends_on": "eval:doc.sap_provider_mode=='Live'",
-   "idx": 17,
+   "idx": 18,
    "reqd": 0,
    "hidden": 0
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "sap_live_cb",
-   "idx": 18,
+   "idx": 19,
    "label": "",
    "reqd": 0,
    "hidden": 0
@@ -189,7 +192,7 @@
    "default": "Generic JSON (checks[])",
    "depends_on": "eval:doc.sap_provider_mode=='Live'",
    "description": "Generic JSON expects {\"checks\": [{\"code\", \"status\": \"Passed|Exception\", \"message\"}, ...]}. Adjust log_sheet_automation/integrations/sap.py if your endpoint returns a different shape.",
-   "idx": 19,
+   "idx": 20,
    "reqd": 0,
    "hidden": 0
   },
@@ -197,7 +200,7 @@
    "fieldtype": "Section Break",
    "label": "Client Approval Link",
    "fieldname": "client_approval_link_16",
-   "idx": 20,
+   "idx": 21,
    "reqd": 0,
    "hidden": 0
   },
@@ -207,14 +210,14 @@
    "fieldtype": "Int",
    "reqd": 1,
    "default": "48",
-   "idx": 21,
+   "idx": 22,
    "hidden": 0
   },
   {
    "fieldtype": "Section Break",
    "label": "Client Notification Delivery",
    "fieldname": "notification_delivery_sb",
-   "idx": 22,
+   "idx": 23,
    "reqd": 0,
    "hidden": 0
   },
@@ -226,7 +229,7 @@
    "default": "Email",
    "reqd": 1,
    "description": "How to deliver the client approval link once generated. 'None' just returns it in the API response (demo behaviour).",
-   "idx": 23,
+   "idx": 24,
    "hidden": 0
   },
   {
@@ -235,14 +238,14 @@
    "fieldtype": "Data",
    "default": "Sanghvi Movers Log Sheet",
    "depends_on": "eval:['Email','Email and SMS'].includes(doc.notification_channel)",
-   "idx": 24,
+   "idx": 25,
    "reqd": 0,
    "hidden": 0
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "notification_cb",
-   "idx": 25,
+   "idx": 26,
    "label": "",
    "reqd": 0,
    "hidden": 0
@@ -253,7 +256,7 @@
    "fieldtype": "Select",
    "options": "\nTwilio",
    "depends_on": "eval:['SMS','Email and SMS'].includes(doc.notification_channel)",
-   "idx": 26,
+   "idx": 27,
    "reqd": 0,
    "hidden": 0
   },
@@ -262,7 +265,7 @@
    "label": "Twilio Account SID",
    "fieldtype": "Data",
    "depends_on": "eval:doc.sms_gateway_provider=='Twilio'",
-   "idx": 27,
+   "idx": 28,
    "reqd": 0,
    "hidden": 0
   },
@@ -271,7 +274,7 @@
    "label": "Twilio Auth Token",
    "fieldtype": "Password",
    "depends_on": "eval:doc.sms_gateway_provider=='Twilio'",
-   "idx": 28,
+   "idx": 29,
    "reqd": 0,
    "hidden": 0
   },
@@ -280,7 +283,7 @@
    "label": "Twilio From Number",
    "fieldtype": "Data",
    "depends_on": "eval:doc.sms_gateway_provider=='Twilio'",
-   "idx": 29,
+   "idx": 30,
    "reqd": 0,
    "hidden": 0
   }

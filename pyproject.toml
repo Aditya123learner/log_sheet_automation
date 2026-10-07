@@ -10,10 +10,14 @@ dynamic = ["version"]
 dependencies = [
     # `requests` ships with every Frappe bench already, listed here for clarity.
     "requests",
-    # Only needed if OCR Provider Mode = "Google Document AI" (signs a JWT and
-    # exchanges it for an OAuth2 access token from the service account key
-    # stored in Log Sheet Automation Settings). Not needed for Mock or Azure.
+    # Google Vision OCR: signs a JWT with the service account key stored in
+    # Log Sheet Automation Settings and exchanges it for an access token.
     "google-auth",
+    # Splitting a scanned multi-page PDF into one image per page and shrinking
+    # it for Vision. Both already ship with every Frappe bench; listed here
+    # because integrations/ocr_pages.py imports them directly.
+    "pypdf",
+    "Pillow",
 ]
 
 [build-system]

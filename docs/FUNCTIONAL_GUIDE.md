@@ -114,11 +114,10 @@ The control panel for the two external integrations, both of which run in **Mock
 | Field | Purpose |
 | --- | --- |
 | OCR Provider Mode | Locked to Google Vision API for this deployment (Mock still exists in code as an offline fallback, but isn't selectable here). |
-| Google Service Account Key (JSON) | The one credential OCR needs — paste the full service account key JSON here. |
-| OCR Daily Row Pattern (regex) | Tunes how Vision's raw recognized text gets split into one Daily Log row per day — edit this once you've seen real OCR output, no code change needed. |
-| OCR Field Label Patterns (JSON) | Secondary tool for matching an optional whole\-sheet total printed as a single labelled value. |
+| Google Service Account Key File (.json) | The one credential OCR needs — upload the key `.json` file exactly as downloaded from Google Cloud and click Save. The file is checked, its contents are stored encrypted, and the uploaded file itself is deleted. **Google Key Loaded** then shows which key is in use. Use the **Test Google Vision Connection** button afterwards. |
+| Keep OCR Word Dump | Attaches a small private JSON file to each sheet with every word OCR recognised and where on the page it was — used to diagnose a misread sheet. |
 | OCR Timeout (seconds) | How long to wait for the OCR provider before failing. |
-| Mock OCR Low\-Confidence Threshold | Below this score, an extracted Daily Log row is marked low\-confidence and routes the sheet to AI Review. |
+| OCR Low\-Confidence Threshold | Below this score, a Daily Log row OCR read is marked as an Exception under Validation Results and the sheet stays in AI Review until the operator ticks OCR Review Complete. |
 | SAP Provider Mode | Locked to Live for this deployment. |
 | Mock SAP Scenario | Lets you demo the three SAP outcomes on demand: **PASS**, **EXPIRED\_SO**, **INSUFFICIENT\_QTY** — switch this before clicking "Run SAP Validation" to show the exception path. |
 | SAP Timeout (seconds) | Timeout for the (future) live SAP call. |
@@ -233,11 +232,11 @@ A running log of every decision made on the sheet — event type, who (or "Guest
 
 This is the exact sequence to show a client end\-to\-end, using the roles above. In this environment one admin user holds all the roles, so you'll be clicking through every step yourself — in production, different people at different desks would do each one.
 
-**Step 1 — Create the log sheet.** From the workspace, click **New Log Sheet**. Fill in Sheet Template (Weekly/Monthly), Month, Period Start/End Date, Operating Site, Equipment, Operator, and the commercial\-mapping fields (Sales Order/Item, Work Order, UOM, Rate Key), pick a Billing Rule, and save. Workflow State opens as **Draft**.
+**Step 1 — Create the log sheet.** From the workspace, click **New Log Sheet**. Pick the Operating Site and Equipment, attach the scan under **Source Document** (a photo, an image, or a scanned PDF) and save. Sheet Template, Month and Period Start/End Date can be left blank — OCR fills them from the scan (fill them by hand only when entering a sheet without a scan). Workflow State opens as **Draft**.
 
-**Step 2 — Run OCR.** Open the saved sheet and click **Run OCR** (top toolbar button, visible to the Operator role while the sheet is Draft/AI Review). The Google Vision provider (or Mock, offline) fills in the Daily Log with one row per day it read off the scan and logs a validation result per row; the sheet moves to **AI Review** if any row came back low\-confidence.
+**Step 2 — Run OCR.** Open the saved sheet and click **Run OCR** (top toolbar button, visible to the Operator role while the sheet is Draft/AI Review). Google Vision reads the scan and the sheet is filled in: template, month, period, one Daily Log row per day, the printed log sheet number and the handwritten header as read. If the PDF has several pages, page 1 fills this sheet and **each further page becomes its own new Equipment Log Sheet** (same Operating Site; Equipment is matched from the Regn. No. when possible, otherwise left blank for you to pick). A summary lists every sheet created. Running OCR again updates those same sheets instead of creating duplicates. A scan with more than 6 pages is read in the background and the form refreshes when it is done.
 
-**Step 3 — Clear AI Review.** Review the Daily Log rows OCR filled in, correct anything wrong, tick **OCR Review Complete** and save once the operator has eyeballed the flagged rows.
+**Step 3 — Clear AI Review.** Open **Validation Results**: every row OCR was unsure about is marked **Exception** with the reason (for example "read '2h' as 24", "total 15 h does not match From–To (16 h)", "date set to follow the day sequence"). Compare those rows with the scan, correct the Daily Log, then tick **OCR Review Complete** and save.
 
 **Step 4 — Generate the client approval link.** Click **Generate Client Approval Link**. The system creates a one\-time, time\-limited link and moves the sheet to **Client Approval Pending**. In production this link is emailed/texted to the client; in the demo you open it directly in a private browser tab to show it needs no login.
 
@@ -272,5 +271,5 @@ The **Log Sheet Automation** workspace (left sidebar) is the home screen for the
 
 - Real OCR and real SAP connectivity — **done** since this guide was first written: OCR now calls Google Vision API and SAP validation calls a live, configurable REST endpoint, both behind the same Settings surface described above.
 - Automated email/SMS delivery of the client approval link — **done**: Email via the site's Email Account, SMS via Twilio.
-- Verifying the OCR Daily Row Pattern against real Vision API output — it's been reviewed against the real paper templates but not yet run through a live Vision API call in this environment; treat extracted rows as needing a human check in AI Review until that's been done (see `Log Sheet Automation Settings > OCR Daily Row Pattern`).
+- Checking OCR accuracy on live scans — the table\-reading logic is unit\-tested against the real templates' printed layout but had not been run on a live Vision API response when this was written; check the first real runs row by row, and keep scans sharp (300 dpi or a well\-lit, straight photo) because handwriting accuracy drops quickly on low\-resolution scans.
 - This build was assembled directly on the ERPNext Desk UI (DocTypes, Server Scripts, Client Scripts, Workspace) rather than as a separate installed, git\-tracked application — see the companion Technical document for what that means and what promoting it to a proper app would involve.
