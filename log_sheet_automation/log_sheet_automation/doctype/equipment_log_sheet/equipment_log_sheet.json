@@ -617,23 +617,60 @@
   },
   {
    "fieldname": "sap_document_reference",
-   "label": "Manual SAP Document Reference",
+   "label": "SAP Document Reference",
    "fieldtype": "Data",
-   "idx": 84
+   "idx": 84,
+   "description": "The SAP document number. Filled automatically by Post to SAP; typed by hand only when billing is closed manually."
+  },
+  {
+   "fieldname": "sap_posting_status",
+   "label": "SAP Posting Status",
+   "fieldtype": "Select",
+   "options": "Not Posted\nPosted\nFailed",
+   "default": "Not Posted",
+   "read_only": 1,
+   "no_copy": 1,
+   "in_standard_filter": 1,
+   "idx": 85
+  },
+  {
+   "fieldname": "sap_posted_on",
+   "label": "Posted to SAP On",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1,
+   "idx": 86
+  },
+  {
+   "fieldname": "sap_posting_run_id",
+   "label": "SAP Posting Run ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "idx": 87
+  },
+  {
+   "fieldname": "sap_posting_message",
+   "label": "SAP Posting Message",
+   "fieldtype": "Small Text",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "What SAP answered to the last posting attempt.",
+   "idx": 88
   },
   {
    "fieldname": "closed_on",
    "label": "Closed On",
    "fieldtype": "Datetime",
    "read_only": 1,
-   "idx": 85
+   "idx": 89
   },
   {
    "fieldtype": "Section Break",
    "label": "Sheet Sign-off (as printed)",
    "fieldname": "sheet_signoff_76",
    "description": "Fields captured straight off the physical sheet's footer/signature blocks, for record-keeping — they don't drive any workflow logic.",
-   "idx": 86
+   "idx": 90
   },
   {
    "fieldname": "hour_meter_opening",
@@ -642,7 +679,7 @@
    "precision": "2",
    "depends_on": "eval:doc.sheet_template=='Weekly'",
    "description": "Only printed on the Weekly template.",
-   "idx": 87
+   "idx": 91
   },
   {
    "fieldname": "hour_meter_closing",
@@ -651,24 +688,24 @@
    "precision": "2",
    "depends_on": "eval:doc.sheet_template=='Weekly'",
    "description": "Only printed on the Weekly template.",
-   "idx": 88
+   "idx": 92
   },
   {
    "fieldname": "total_working_days_words",
    "label": "Total Working Days/Shifts (in words)",
    "fieldtype": "Data",
-   "idx": 89
+   "idx": 93
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_80",
-   "idx": 90
+   "idx": 94
   },
   {
    "fieldname": "total_overtime_hours_words",
    "label": "Total Overtime Hours (in words)",
    "fieldtype": "Data",
-   "idx": 91
+   "idx": 95
   },
   {
    "fieldname": "total_breakdown_hours_words",
@@ -676,18 +713,18 @@
    "fieldtype": "Data",
    "depends_on": "eval:doc.sheet_template=='Weekly'",
    "description": "Only printed on the Weekly template.",
-   "idx": 92
+   "idx": 96
   },
   {
    "fieldtype": "Column Break",
    "fieldname": "column_break_83",
-   "idx": 93
+   "idx": 97
   },
   {
    "fieldname": "site_engineer_name",
    "label": "Site Engineer / Supervisor",
    "fieldtype": "Data",
-   "idx": 94
+   "idx": 98
   },
   {
    "fieldname": "mechanical_hod_name",
@@ -695,19 +732,19 @@
    "fieldtype": "Data",
    "depends_on": "eval:doc.sheet_template=='Monthly'",
    "description": "Only printed on the Monthly template.",
-   "idx": 95
+   "idx": 99
   },
   {
    "fieldname": "project_manager_name",
    "label": "Project Manager",
    "fieldtype": "Data",
-   "idx": 96
+   "idx": 100
   },
   {
    "fieldtype": "Section Break",
    "label": "Audit",
    "fieldname": "audit_87",
-   "idx": 97
+   "idx": 101
   },
   {
    "fieldname": "approval_events",
@@ -715,7 +752,7 @@
    "fieldtype": "Table",
    "options": "Equipment Log Approval Event",
    "read_only": 1,
-   "idx": 98
+   "idx": 102
   }
  ],
  "permissions": [

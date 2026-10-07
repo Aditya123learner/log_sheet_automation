@@ -133,6 +133,87 @@ def _build_sap_payload(doc):
 	}
 
 
+def _auth_headers(settings):
+	headers = {"Content-Type": "application/json"}
+	credential = settings.get_password("sap_credential", raise_exception=False)
+	if credential and settings.sap_auth_type == "API Key":
+		headers["Authorization"] = f"ApiKey {credential}"
+	elif credential and settings.sap_auth_type == "OAuth":
+		headers["Authorization"] = f"Bearer {credential}"
+	return headers
+
+
+# ---------------------------------------------------------------------------
+# Posting the approved log sheet to SAP
+# ---------------------------------------------------------------------------
+
+def build_posting_payload(doc):
+	"""Everything SAP needs to book the approved sheet: the same sheet data
+	the validation call sends, plus the result of the approval chain — the
+	calculated billable hours with the rule and trace that produced them,
+	and who/when for each approval.
+
+	`idempotency_key` is the log sheet's own number. A posting is a WRITE in
+	SAP, so the receiving side must use this key to refuse a second posting
+	of the same sheet (a retry after a timeout must not bill twice)."""
+	import json as json_module
+
+	try:
+		trace = json_module.loads(doc.calculation_trace) if doc.calculation_trace else None
+	except ValueError:
+		trace = None
+
+	payload = _build_sap_payload(doc)
+	payload.update(
+		{
+			"idempotency_key": doc.name,
+			"log_sheet_no": doc.log_sheet_no,
+			"billing": {
+				"billable_hours": flt(doc.billable_hours),
+				"uom": doc.uom,
+				"billing_rule": doc.billing_rule,
+				"billing_rule_version": doc.billing_rule_version,
+				"calculation_trace": trace,
+			},
+			"approvals": {
+				"client": {"status": doc.client_approval_status, "on": str(doc.client_decision_on) if doc.client_decision_on else None, "approver": doc.client_recipient},
+				"maintenance": {"status": doc.maintenance_status},
+				"sap_validation": {"status": doc.sap_validation_status, "run_id": doc.sap_current_run_id},
+				"operations": {"status": doc.operations_status},
+			},
+		}
+	)
+	return payload
+
+
+def post_log_sheet(doc, settings):
+	"""Sends the approved sheet to SAP and returns (run_id, document_number,
+	message). Raises on any failure — the caller records it and leaves the
+	sheet Billing Ready so the posting can be retried."""
+	run_id = f"SAP-POST-{now_datetime().strftime('%Y%m%d%H%M%S%f')}"
+	if settings.sap_provider_mode != "Live":
+		return run_id, f"MOCK-{now_datetime().strftime('%y%m%d%H%M%S')}", "Mock posting — nothing was sent to SAP."
+
+	import requests
+
+	if not settings.get("sap_post_endpoint"):
+		frappe.throw(frappe._("SAP Posting Endpoint is not set in Log Sheet Automation Settings."))
+
+	timeout = frappe.utils.cint(settings.sap_timeout_seconds) or 30
+	response = requests.post(
+		settings.sap_post_endpoint, json=build_posting_payload(doc), headers=_auth_headers(settings), timeout=timeout
+	)
+	response.raise_for_status()
+	body = response.json()
+
+	document_number = body.get("sap_document_number") or body.get("document_number") or body.get("sap_document_reference")
+	if not document_number:
+		frappe.throw(
+			frappe._("SAP did not return a document number: {0}").format(str(body.get("message") or body)[:300])
+		)
+	return run_id, str(document_number), str(body.get("message") or "Posted.")
+
+
 def _call_live_endpoint(doc, settings):
 	"""Replace this function's body with whatever your SAP integration
 	layer actually expects. As shipped it implements a plain REST contract:

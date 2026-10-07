@@ -16,7 +16,7 @@
    "fieldname": "validation_type",
    "label": "Validation Type",
    "fieldtype": "Select",
-   "options": "OCR\nBusiness\nSAP",
+   "options": "OCR\nBusiness\nSAP\nSAP Posting",
    "in_list_view": 1,
    "idx": 1
   },

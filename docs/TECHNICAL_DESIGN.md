@@ -280,6 +280,7 @@ All nine are `@frappe.whitelist()`\-equivalent Server Scripts (`script_type = "A
 - **`request_log_sheet_sap_revalidation`** — logs the corrective action taken by Sales; the caller then re\-invokes `run_log_sheet_sap_validation`.
 - **`record_log_sheet_operations_decision`** — **BR\-010**\: re\-checks all three gates server\-side before allowing Approve; calculates `billable_hours` from the Billing Rule and sets `workflow_state = Billing Ready`.
 - **`record_log_sheet_billing_outcome`** — closes (`workflow_state = Closed`) or holds billing; **BR\-011**.
+- **`post_log_sheet_to_sap`** — the normal last step. Requires Billing Ready with every gate clear; POSTs `sap.build_posting_payload()` (sheet data, billable hours with rule/version/trace, approval statuses, `idempotency_key` = sheet name) to **SAP Posting Endpoint**; on a returned `sap_document_number` stores it, sets `sap_posting_status = Posted` and closes the sheet. On failure sets `sap_posting_status = Failed`, records the message and leaves the sheet Billing Ready for a retry. Never posts a sheet twice.
 
 > **Mutating calls must be POST.** GET requests against these endpoints were observed to return `{"ok": true}` without persisting the write (Frappe does not reliably auto\-commit a GET request) — confirmed during testing on `record_log_sheet_client_decision`. Only the read\-only `get_log_sheet_approval_snapshot` is safe as GET.
 
